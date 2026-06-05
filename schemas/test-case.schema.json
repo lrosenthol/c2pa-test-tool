@@ -1,0 +1,171 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://c2pa.org/conformance/schemas/test-case/test-case.schema.json",
+    "title": "C2PA test file creation schema",
+    "description": "Describes a single (output) C2PA test file. Creating a test file requires an input asset, a manifest to create, the signing credentials, and optional Time-Stamping Authority.",
+    "type": "object",
+    "properties": {
+        "testId": {
+            "type": "string",
+            "description": "A unique identifier for this test file. SHOULD follow a hierarchical dot-notation convention (e.g., 'c2pa.test.created') to allow grouping and filtering.",
+            "pattern": "^[a-zA-Z0-9_\\-\\.]+$",
+            "examples": [
+                "c2pa.test.created",
+                "c2pa.test.edited",
+                "c2pa.test.placed"
+            ]
+        },
+        "title": {
+            "type": "string",
+            "description": "A short, human-readable title for this test case."
+        },
+        "description": {
+            "type": "string",
+            "description": "A detailed human-readable description of what this test case verifies and why it is relevant to conformance."
+        },
+        "inputAsset": {
+            "type": "string",
+            "description": "Relative path to the input media asset (e.g., image, video, audio, document) that serves as the base content for this test case. The manifest will be embedded into this asset during test generation."
+        },
+        "manifest": {
+            "type": "object",
+            "description": "The manifest declaration/definition in crJSON format that specifies what C2PA manifest content to embed in the input asset. This follows the c2patool manifest definition format and is used by an automated tool to produce the signed test asset.",
+            "properties": {
+                "alg": {
+                    "type": "string",
+                    "description": "The signing algorithm to use when producing the claim signature.",
+                    "examples": [
+                        "Es256",
+                        "Es384",
+                        "Es512",
+                        "Ps256",
+                        "Ed25519"
+                    ]
+                },
+                "claim_generator_info": {
+                    "type": "array",
+                    "description": "Additional structured information about the claim generator.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The name of the claim generator software."
+                            },
+                            "version": {
+                                "type": "string",
+                                "description": "The version of the claim generator software."
+                            },
+                            "specVersion": {
+                                "type": "string",
+                                "description": "The version of the C2PA specification that the claim generator software implements."
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ],
+                        "additionalProperties": true
+                    }
+                },
+                "assertions": {
+                    "type": "array",
+                    "description": "Array of C2PA assertion objects to embed in the manifest. Each assertion has a label identifying its type and a data payload.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "description": "The assertion label identifying the assertion type (e.g., 'c2pa.actions', 'c2pa.hash.data', 'c2pa.thumbnail.claim.jpeg')."
+                            },
+                            "data": {
+                                "description": "The assertion data payload. Its structure depends on the assertion type identified by 'label'."
+                            }
+                        },
+                        "required": [
+                            "label",
+                            "data"
+                        ],
+                        "additionalProperties": true
+                    }
+                },
+                "ingredients": {
+                    "type": "array",
+                    "description": "Array of ingredient objects describing source assets used in producing this asset. Entries with a 'file_path' field reference external asset files to load as C2PA ingredients; entries without 'file_path' are inline C2PA ingredient definitions passed directly to the manifest builder.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to an external asset file to load as a C2PA ingredient. When present, the file is read from disk and embedded as an ingredient; the entry is not passed as an inline ingredient definition."
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "A unique identifier for this ingredient. SHOULD follow a hierarchical dot-notation convention (e.g., 'c2pa.ingredient.test_ingredient') to allow grouping and filtering."
+                            },
+                            "relationship": {
+                                "type": "string",
+                                "description": "The relationship between this ingredient and the output asset. MUST be one of 'parentOf' or 'componentOf'."
+                            }
+                        },
+                        "additionalProperties": true
+                    }
+                }
+            },
+            "additionalProperties": true
+        },
+        "signingCert": {
+            "type": "string",
+            "description": "Relative path to the PEM-encoded X.509 signing certificate (and any required certificate chain) used to sign the manifest. The certificate SHOULD be suitable for C2PA claim signing as described in the C2PA Certificate Policy."
+        },
+        "signingKey": {
+            "type": "string",
+            "description": "Relative path to the PEM-encoded private key that corresponds to the signing certificate. If omitted, the implementation MUST obtain the private key by another means (e.g., from a hardware security module or from the same file as 'signingCert')."
+        },
+        "tsaUrl": {
+            "type": "string",
+            "description": "URL of a RFC 3161-compliant Time-Stamping Authority (TSA) to obtain a signed timestamp for the claim signature. If omitted, no timestamp is requested and the resulting asset will not carry an embedded time-stamp token.",
+            "format": "uri"
+        }
+    },
+    "required": [
+        "testId",
+        "manifest",
+        "signingCert"
+    ],
+    "additionalProperties": false,
+    "examples": [
+        {
+            "testId": "validator.claimSignature.valid",
+            "title": "Valid Claim Signature",
+            "description": "Verifies that a conformant validator correctly reports a valid claim signature when the asset has not been tampered with and the signing certificate is trusted.",
+            "inputAsset": "assets/sample.jpg",
+            "manifest": {
+                "alg": "Es256",
+                "claim_generator_info": [
+                    {
+                        "name": "crTool",
+                        "version": "0.1.0",
+                        "specVersion": "2.3"
+                    }
+                ],
+                "title": "Sample Test Asset",
+                "assertions": [
+                    {
+                        "label": "c2pa.actions",
+                        "data": {
+                            "actions": [
+                                {
+                                    "action": "c2pa.created",
+                                    "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "signingCert": "certs/test-signing.pem",
+            "signingKey": "certs/test-signing.key",
+            "tsaUrl": "http://timestamp.digicert.com"
+        }
+    ]
+}

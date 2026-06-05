@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "crTool Batch File",
+  "description": "Schema for crTool batch operation files. An array of commands to execute in sequence.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["command"],
+    "additionalProperties": false,
+    "properties": {
+      "command": {
+        "type": "string",
+        "enum": ["extract", "profile", "test-cases", "validate"],
+        "description": "The operation to perform. 'extract' extracts a C2PA manifest to crJSON; 'profile' evaluates a crJSON against a YAML asset profile; 'test-cases' creates signed test assets from a test case JSON file; 'validate' validates JSON files against the crJSON schema."
+      },
+      "arguments": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": [],
+        "description": "Additional command-line arguments for the operation (e.g. [\"-o\", \"output/\", \"--profile\", \"profile.yaml\"]). For 'test-cases', the --create-test value accepts a glob pattern (e.g. [\"--create-test\", \"test-cases/positive/tc-*.json\", \"-o\", \"output/\"])."
+      },
+      "inputFiles": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": [],
+        "description": "Input file paths or glob patterns to process (e.g. [\"input.jpg\", \"images/*.png\"])."
+      }
+    }
+  }
+}
