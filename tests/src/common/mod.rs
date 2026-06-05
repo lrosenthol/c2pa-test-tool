@@ -60,11 +60,6 @@ pub fn signed_assets_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assets/signed")
 }
 
-/// Test helper to get the path to manifest examples
-pub fn manifests_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples")
-}
-
 /// Test helper to get the path to testset
 pub fn testset_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testset")
@@ -165,38 +160,6 @@ fn extract_manifest_json(json: &str) -> String {
     json.to_string()
 }
 
-/// Helper function to sign a file with a manifest
-pub fn sign_file_with_manifest(
-    input_path: &Path,
-    output_path: &Path,
-    manifest_path: &Path,
-) -> Result<()> {
-    if output_path.exists() {
-        fs::remove_file(output_path)?;
-    }
-
-    let raw_json = fs::read_to_string(manifest_path)?;
-    let manifest_json = extract_manifest_json(&raw_json);
-
-    let ingredients_base_dir = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-
-    let (file_ingredients, cleaned_manifest) =
-        process_ingredients_with_thumbnails(&manifest_json, ingredients_base_dir, false)?;
-
-    let mut builder = Builder::from_context(Context::new()).with_definition(&cleaned_manifest)?;
-
-    add_manifest_resources_from_dir(&mut builder, &manifest_json, ingredients_base_dir)?;
-
-    for ingredient in file_ingredients {
-        builder.add_ingredient(ingredient);
-    }
-
-    let signer = test_signer();
-    builder.sign_file(&signer, input_path, output_path)?;
-
-    Ok(())
-}
-
 /// Helper function to sign a file with a manifest that includes file-based ingredients
 pub fn sign_file_with_manifest_and_ingredients(
     input_path: &Path,
@@ -211,24 +174,6 @@ pub fn sign_file_with_manifest_and_ingredients(
         ingredients_base_dir,
         false,
         false,
-    )
-}
-
-pub fn sign_file_with_manifest_and_options(
-    input_path: &Path,
-    output_path: &Path,
-    manifest_path: &Path,
-    ingredients_base_dir: &Path,
-    generate_asset_thumbnail: bool,
-    generate_ingredient_thumbnails: bool,
-) -> Result<()> {
-    sign_file_with_manifest_and_ingredients_impl(
-        input_path,
-        output_path,
-        manifest_path,
-        ingredients_base_dir,
-        generate_asset_thumbnail,
-        generate_ingredient_thumbnails,
     )
 }
 
@@ -463,45 +408,6 @@ pub fn get_test_images() -> Vec<PathBuf> {
     ]
 }
 
-/// Check if a manifest has an asset thumbnail assertion
-pub fn has_asset_thumbnail(reader: &Reader, manifest_label: &str) -> bool {
-    if let Some(manifest) = reader.get_manifest(manifest_label) {
-        let json = reader.json();
-
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) {
-            if let Some(manifests) = value.get("manifests").and_then(|m| m.as_object()) {
-                for (_label, manifest_data) in manifests {
-                    if manifest_data.get("thumbnail").is_some() {
-                        return true;
-                    }
-                }
-            }
-
-            let assertions = manifest.assertions();
-            if assertions
-                .iter()
-                .any(|a| a.label().starts_with("c2pa.thumbnail.claim"))
-            {
-                return true;
-            }
-        }
-
-        false
-    } else {
-        false
-    }
-}
-
-/// Check if any ingredients have thumbnails
-pub fn has_ingredient_thumbnails(reader: &Reader, manifest_label: &str) -> bool {
-    if let Some(manifest) = reader.get_manifest(manifest_label) {
-        let ingredients = manifest.ingredients();
-        ingredients.iter().any(|ing| ing.thumbnail_ref().is_some())
-    } else {
-        false
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -509,7 +415,6 @@ mod tests {
     #[test]
     fn test_fixtures_exist() {
         assert!(testfiles_dir().exists(), "testfiles directory should exist");
-        assert!(manifests_dir().exists(), "examples directory should exist");
         assert!(certs_dir().exists(), "test certs directory should exist");
     }
 
@@ -518,14 +423,6 @@ mod tests {
         for img in get_test_images() {
             assert!(img.exists(), "Test image should exist: {:?}", img);
         }
-    }
-
-    #[test]
-    fn test_manifests_exist() {
-        let simple = manifests_dir().join("simple_manifest.json");
-        let full = manifests_dir().join("full_manifest.json");
-        assert!(simple.exists(), "simple_manifest.json should exist");
-        assert!(full.exists(), "full_manifest.json should exist");
     }
 
     #[test]

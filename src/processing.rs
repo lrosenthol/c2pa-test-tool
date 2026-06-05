@@ -119,6 +119,7 @@ fn load_ingredient_from_file(file_path: &Path, generate_thumbnail: bool) -> Resu
     let format = extension_to_mime(extension)
         .context(format!("Unsupported ingredient file format: {}", extension))?;
 
+    #[allow(deprecated)]
     let mut ingredient = Ingredient::from_stream(format, &mut source).context(format!(
         "Failed to create ingredient from file: {:?}",
         file_path
@@ -416,7 +417,8 @@ pub fn process_single_file(
         process_ingredients(config.manifest_json, config.ingredients_base_dir, false)
             .context("Failed to process ingredients")?;
 
-    let mut builder = Builder::from_json(&cleaned_manifest)
+    let mut builder = Builder::from_context(c2pa::Context::new())
+        .with_definition(cleaned_manifest.as_str())
         .context("Failed to create builder from JSON manifest")?;
 
     let ingredient_count = file_ingredients.len();

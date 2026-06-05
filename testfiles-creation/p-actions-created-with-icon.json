@@ -7,7 +7,7 @@
                 "version": "0.1.0",
                 "icon": {
                     "format": "image/svg+xml",
-                    "identifier": "logo.svg"
+                    "identifier": "../tests/fixtures/assets/logo.svg"
                 },
                 "specVersion": "2.3"
             }
