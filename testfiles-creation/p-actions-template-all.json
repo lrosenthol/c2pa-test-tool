@@ -1,0 +1,66 @@
+{
+    "testId": "c2pa.test.actions-template-all",
+    "manifest": {
+        "claim_generator_info": [
+            {
+                "name": "crTool",
+                "version": "0.1.0",
+                "specVersion": "2.3"
+            }
+        ],
+        "title": "p-actions-template-all",
+        "assertions": [
+            {
+                "label": "c2pa.actions.v2",
+                "data": {
+                    "actions": [
+                        {
+                            "action": "c2pa.opened",
+                            "when": "2026-01-17T14:44:19.231Z",
+                            "softwareAgent": {
+                                "name": "Joe's Photo Editor",
+                                "version": "2.0",
+                                "operating_system": "Windows 10"
+                            },
+                            "parameters": {
+                                "ingredientIds": [
+                                    "PARENT"
+                                ]
+                            }
+                        },
+                        {
+                            "action": "c2pa.edited",
+                            "when": "2026-01-26T18:44:26.218Z"
+                        },
+                        {
+                            "action": "c2pa.cropped",
+                            "when": "2026-01-26T18:44:26.218Z"
+                        }
+                    ],
+                    "templates": [
+                        {
+                            "action": "*",
+                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/humanEdits",
+                            "softwareAgent": {
+                                "name": "Jane's Human Authoring Tool",
+                                "version": "1.0"
+                            }
+                        }
+                    ]
+                },
+                "created": true
+            }
+        ],
+        "ingredients": [
+            {
+                "title": "Test",
+                "format": "image/jpeg",
+                "relationship": "parentOf",
+                "label": "PARENT"
+            }
+        ]
+    },
+    "signingCert": "../tests/fixtures/certs/es256_cert.pem",
+    "signingKey": "../tests/fixtures/certs/es256_private.pem",
+    "tsaUrl": "http://timestamp.digicert.com"
+}

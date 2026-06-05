@@ -1,0 +1,40 @@
+{
+  "@context": [
+    "https://jpeg.org/jpegtrust/context/v1"
+  ],
+  "asset_info": {
+    "alg": "sha256",
+    "hash": "dGVzdGhhc2g="
+  },
+  "content": {
+    "imageWidth": 1920,
+    "imageHeight": 1080,
+    "fileType": "jpeg"
+  },
+  "manifests": [
+    {
+      "label": "urn:uuid:12345678-1234-1234-1234-123456789abc",
+      "claim.v2": {
+        "version": 2,
+        "title": "Test Claim",
+        "instanceID": "xmp:iid:12345678-1234-1234-1234-123456789abc",
+        "alg": "sha256",
+        "claim_generator": "Test Generator/1.0"
+      },
+      "assertions": {
+        "c2pa.actions": {
+          "actions": [
+            {
+              "action": "c2pa.created",
+              "softwareAgent": "TestApp/1.0"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "validation_status": {
+    "isValid": true,
+    "error": null
+  }
+}

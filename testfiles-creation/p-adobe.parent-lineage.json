@@ -1,0 +1,85 @@
+{
+    "testId": "c2pa.test.adobe.parent-lineage",
+    "manifest": {
+        "title": "Generated Image: Marketing Asset - Feb 03, 2026 at 20.50.00",
+        "format": "image/png",
+        "instanceID": "xmp:iid:exported-image-instance-id",
+        "ingredients": [
+            {
+                "title": "Parent Image",
+                "format": "image/jpeg",
+                "instanceId": "xmp:iid:aemi1",
+                "relationship": "parentOf",
+                "metadata": {
+                    "com.adobe.aemAssetId": "4a241a92-e9ec-4f19-8f6c-f82972e59859",
+                    "com.adobe.aemVersionId": "version-2",
+                    "com.adobe.aemRepositoryId": "author-p12345-e67890.adobeaemcloud.com"
+                }
+            },
+            {
+                "title": "Background Image",
+                "format": "image/jpeg",
+                "instanceID": "xmp:iid:b2c3d4e5-f6a7-5890-b123-4567890bcdef",
+                "relationship": "componentOf",
+                "metadata": {
+                    "com.adobe.aemAssetId": "66bdc6e5-0538-4dc4-b1ac-a1f441ff7a3a",
+                    "com.adobe.aemVersionId": "version-12345678-90ab-cdef-1234-567890abcdef",
+                    "com.adobe.aemRepositoryId": "author-p12345-e67890.adobeaemcloud.com"
+                }
+            },
+            {
+                "title": "Product Image",
+                "format": "image/jpeg",
+                "instance_id": "xmp:iid:c3d4e5f6-a7b8-6901-c234-567890cdefab",
+                "relationship": "componentOf",
+                "metadata": {
+                    "com.adobe.aemAssetId": "550817ae-8a49-4509-89d4-8504e7847024",
+                    "com.adobe.aemVersionId": "version-23456789-01bc-def2-3456-7890abcdef12",
+                    "com.adobe.aemRepositoryId": "author-p12345-e67890.adobeaemcloud.com"
+                }
+            }
+        ],
+        "assertions": [
+            {
+                "label": "c2pa.actions.v2",
+                "data": {
+                    "actions": [
+                        {
+                            "action": "c2pa.created",
+                            "softwareAgent": "Adobe Express"
+                        },
+                        {
+                            "action": "c2pa.edited",
+                            "parameters": {
+                                "description": "image composition"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "label": "com.adobe.parent-lineage",
+                "data": {
+                    "parents": [
+                        {
+                            "documentID": "xmp:did:a1b2c3d4-e5f6-4789-a012-3456789abcde",
+                            "instanceID": "xmp:iid:a1b2c3d4-e5f6-4789-a012-3456789abcde",
+                            "repoAssetId": "urn:aaid:sc:US:asset-id-aaaaaaaa-90ab-cdef-1234-567890abcdef",
+                            "repoVersion": "1"
+                        },
+                        {
+                            "documentID": "xmp:did:aemd1",
+                            "instanceID": "xmp:iid:aemi1",
+                            "aemAssetId": "6db4d9d3-d11b-4907-9e9d-8d1f56498c5b",
+                            "aemVersionId": "version-2",
+                            "aemRepositoryId": "author-p12345-e67890.adobeaemcloud.com"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "signingCert": "../tests/fixtures/certs/es256_cert.pem",
+    "signingKey": "../tests/fixtures/certs/es256_private.pem",
+    "tsaUrl": "http://timestamp.digicert.com"
+}

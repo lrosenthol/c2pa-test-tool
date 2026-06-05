@@ -1,0 +1,22 @@
+# Rustfmt configuration for crTool
+# See https://rust-lang.github.io/rustfmt/ for all options
+
+edition = "2021"
+
+# Formatting options
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+
+# Code style
+use_small_heuristics = "Default"
+
+# Misc
+remove_nested_parens = true
+use_try_shorthand = true
+use_field_init_shorthand = true
+force_explicit_abi = true
+
+# Note: Some advanced options like imports_granularity and group_imports
+# require nightly Rust. If you want to use those, run:
+# cargo +nightly fmt

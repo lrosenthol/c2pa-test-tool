@@ -1,0 +1,36 @@
+{
+    "testId": "c2pa.test.actions-created-with-icon",
+    "manifest": {
+        "claim_generator_info": [
+            {
+                "name": "crTool",
+                "version": "0.1.0",
+                "icon": {
+                    "format": "image/svg+xml",
+                    "identifier": "logo.svg"
+                },
+                "specVersion": "2.3"
+            }
+        ],
+        "title": "p-actions-created-with-icon",
+        "assertions": [
+            {
+                "label": "c2pa.actions",
+                "data": {
+                    "actions": [
+                        {
+                            "action": "c2pa.created",
+                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia",
+                            "when": "2026-01-17T14:44:19.231Z"
+                        }
+                    ]
+                },
+                "created": true
+            }
+        ],
+        "ingredients": []
+    },
+    "signingCert": "../tests/fixtures/certs/es256_cert.pem",
+    "signingKey": "../tests/fixtures/certs/es256_private.pem",
+    "tsaUrl": "http://timestamp.digicert.com"
+}

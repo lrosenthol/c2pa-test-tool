@@ -1,0 +1,74 @@
+{
+  "profile_metadata": {
+    "name": "Real Life Capture Profile",
+    "issuer": "C2PA Conformance Task Force",
+    "date": "2026-02-08T10:20:25.844Z",
+    "version": "1.0.0",
+    "language": "en"
+  },
+  "statements": [
+    [
+      {
+        "id": "contentInfo",
+        "title": "Content Information",
+        "report_text": "This section provides information about the content"
+      },
+      {
+        "id": "content",
+        "value": true,
+        "report_text": "This content has not been modified"
+      }
+    ],
+    [
+      {
+        "id": "manifestInfo",
+        "title": "Manifest Information",
+        "report_text": "This section provides information about the Content Credential's manifest(s)"
+      },
+      {
+        "id": "single_manifest",
+        "value": true,
+        "report_text": "There is only a single manifest present"
+      }
+    ],
+    [
+      {
+        "id": "actionsInfo",
+        "title": "Actions Information",
+        "report_text": "This section provides information about the Content Credential's actions"
+      },
+      {
+        "id": "actions",
+        "value": true,
+        "report_text": "The actions section is present & first action is c2pa.created"
+      },
+      {
+        "id": "capture",
+        "value": true,
+        "report_text": "This media asset was created from a capture"
+      },
+      {
+        "id": "algoEnhancedActions",
+        "value": true,
+        "report_text": "All actions, if any, beyond the first have a digitalSourceType of \"algorithmicallyEnhanced\""
+      },
+      {
+        "id": "notCreatedOrOpenedActions",
+        "value": true,
+        "report_text": "All actions, if any, beyond the first are neither \"c2pa.created\" nor \"c2pa.opened\""
+      }
+    ],
+    [
+      {
+        "id": "compliance",
+        "title": "Compliance",
+        "report_text": "This section provides the compliance status of the asset with respect to this profile."
+      },
+      {
+        "id": "c2pa:profile_compliance",
+        "value": true,
+        "report_text": "Compliance Status: true\n"
+      }
+    ]
+  ]
+}

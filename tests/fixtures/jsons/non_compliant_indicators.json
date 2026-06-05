@@ -1,0 +1,26 @@
+{
+    "@context": [
+        "https://c2pa.org/crjson/context/v1"
+    ],
+    "jsonGenerator": {
+        "name": "crTool-test-fixture",
+        "version": "1.0.0",
+        "date": "2026-03-12T00:00:00Z"
+    },
+    "manifests": [
+        {
+            "label": "urn:uuid:test-non-compliant",
+            "validationResults": {
+                "success": [],
+                "informational": [],
+                "failure": [
+                    {
+                        "code": "assertion.dataHash.modified",
+                        "url": "self#jumbf=/c2pa/assertions/c2pa.hash.data"
+                    }
+                ]
+            },
+            "assertions": {}
+        }
+    ]
+}

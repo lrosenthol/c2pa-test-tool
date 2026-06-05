@@ -1,0 +1,16 @@
+{
+  "@context": [
+    "https://jpeg.org/jpegtrust/context/v1"
+  ],
+  "asset_info": {
+    "alg": "sha256"
+  },
+  "manifests": [
+    {
+      "label": "urn:uuid:12345678-1234-1234-1234-123456789abc",
+      "claim.v2": {
+        "version": "invalid_version_should_be_number"
+      }
+    }
+  ]
+}

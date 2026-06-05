@@ -1,0 +1,51 @@
+{
+    "testId": "c2pa.test.actions-placed-manifest-metadata",
+    "manifest": {
+        "claim_generator_info": [
+            {
+                "name": "crTool",
+                "version": "0.1.0",
+                "specVersion": "2.3"
+            }
+        ],
+        "title": "p-actions-placed-manifest",
+        "assertions": [
+            {
+                "label": "c2pa.actions",
+                "data": {
+                    "actions": [
+                        {
+                            "action": "c2pa.created",
+                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia",
+                            "when": "2026-01-17T14:44:19.231Z"
+                        },
+                        {
+                            "action": "c2pa.placed",
+                            "when": "2026-01-17T15:44:19.231Z",
+                            "parameters": {
+                                "ingredientIds": [
+                                    "test_ingredient"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "created": true
+            }
+        ],
+        "ingredients": [
+            {
+                "file_path": "../tests/fixtures/assets/ingredients/test_ingredient_manifest.jpg",
+                "label": "test_ingredient",
+                "relationship": "componentOf",
+                "metadata": {
+                    "com.adobe.repo.asset-id": "{hz-acp-asset-id }",
+                    "com.adobe.repo.version": "{hz-acp-version-id}"
+                }
+            }
+        ]
+    },
+    "signingCert": "../tests/fixtures/certs/es256_cert.pem",
+    "signingKey": "../tests/fixtures/certs/es256_private.pem",
+    "tsaUrl": "http://timestamp.digicert.com"
+}

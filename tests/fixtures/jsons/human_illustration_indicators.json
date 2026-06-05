@@ -1,0 +1,35 @@
+{
+    "@context": [
+        "https://c2pa.org/crjson/context/v1"
+    ],
+    "jsonGenerator": {
+        "name": "crTool-test-fixture",
+        "version": "1.0.0",
+        "date": "2026-03-12T00:00:00Z"
+    },
+    "manifests": [
+        {
+            "label": "urn:uuid:test-human-illustration",
+            "validationResults": {
+                "success": [
+                    {
+                        "code": "assertion.dataHash.match",
+                        "url": "self#jumbf=/c2pa/assertions/c2pa.hash.data"
+                    }
+                ],
+                "informational": [],
+                "failure": []
+            },
+            "assertions": {
+                "c2pa.actions.v2": {
+                    "actions": [
+                        {
+                            "action": "c2pa.created",
+                            "digitalSourceType": "http://c2pa.org/digitalsourcetype/empty"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

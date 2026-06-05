@@ -1,0 +1,40 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE (but keep .vscode settings for workspace config)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.cursor/*
+!.cursor/rules/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Output
+/output/
+crTool.app/
+*.signed.*
+
+# Certificates (except examples)
+*.pem
+!examples/certs/*.pem
+
+# Test files
+/test_output/
+/temp/
+/INTERNAL/cddl/*
+testset/~$C2PA-JPT Testfiles.xlsx
+crTool.app.zip
+
+# Adobe security rules
+.cursor/rules/manifest.json
+.cursor/rules/security-global/*
+.cursor/rules/security-lang/*
