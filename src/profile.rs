@@ -26,16 +26,16 @@ pub enum ReportFormat {
     Yaml,
 }
 
-/// Evaluate a crJSON file against a YAML asset profile and write the report.
+/// Evaluate a crJSON file against a YAML asset rubric (or profile) and write the report.
 /// The report is written alongside the crJSON file as `<stem>-report.<ext>`.
-pub fn run_profile_evaluation(
+pub fn run_rubric_evaluation(
     crjson_path: &Path,
     profile_path: &Path,
     format: ReportFormat,
 ) -> Result<()> {
-    println!("Running profile evaluation...");
+    println!("Running rubric evaluation...");
     println!("  crJSON: {:?}", crjson_path);
-    println!("  Profile: {:?}", profile_path);
+    println!("  Rubric: {:?}", profile_path);
 
     let output_format = match format {
         ReportFormat::Json => ProfileOutputFormat::Json,
@@ -67,7 +67,7 @@ pub fn run_profile_evaluation(
 
     fs::write(&report_path, serialized).context("Failed to write evaluation report")?;
 
-    println!("✓ Profile evaluation complete");
+    println!("✓ Rubric evaluation complete");
     println!("  Report: {:?}", report_path);
 
     Ok(())

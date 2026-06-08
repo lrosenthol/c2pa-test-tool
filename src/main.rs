@@ -19,7 +19,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use crtool::SUPPORTED_ASSET_EXTENSIONS;
 use glob::glob;
-use profile::{run_profile_evaluation, ReportFormat};
+use profile::{run_rubric_evaluation, ReportFormat};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use test_case::handle_create_test;
@@ -64,7 +64,7 @@ impl Logger {
 
 // ─── CLI definition ───────────────────────────────────────────────────────────
 
-/// C2PA Test Tool - Create test assets, validate assets, and evaluate profiles
+/// C2PA Test Tool - Create test assets, validate assets, and evaluate rubrics
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
@@ -99,12 +99,13 @@ pub struct Cli {
     #[arg(long, default_value = "false")]
     trust: bool,
 
-    /// Path to the YAML asset profile for profile evaluation.
+    /// Path to the YAML asset rubric for rubric evaluation.
     /// When used alone, treats input files as crJSON indicators.
-    #[arg(long, value_name = "FILE")]
-    profile: Option<PathBuf>,
+    /// Also accepts --profile as a deprecated alias.
+    #[arg(long, alias = "profile", value_name = "FILE")]
+    rubric: Option<PathBuf>,
 
-    /// Output format for the profile evaluation report (json or yaml)
+    /// Output format for the rubric evaluation report (json or yaml)
     #[arg(long, value_enum, default_value_t = ReportFormat::Json)]
     report_format: ReportFormat,
 
@@ -281,32 +282,32 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
         return Ok(());
     }
 
-    // ── Profile evaluation mode ───────────────────────────────────────────────
-    if cli.profile.is_some() {
-        let profile_path = cli.profile.as_ref().unwrap();
+    // ── Rubric evaluation mode ────────────────────────────────────────────────
+    if cli.rubric.is_some() {
+        let rubric_path = cli.rubric.as_ref().unwrap();
 
-        let unsupported_for_profile: Vec<_> = input_files
+        let unsupported_for_rubric: Vec<_> = input_files
             .iter()
             .filter(|p| !crtool::is_supported_asset_path(p) && {
                 let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
                 ext != "json"
             })
             .collect();
-        if !unsupported_for_profile.is_empty() {
+        if !unsupported_for_rubric.is_empty() {
             anyhow::bail!(
-                "Unsupported file format(s) for profile evaluation: {:?}",
-                unsupported_for_profile.iter().map(|p| p.as_path()).collect::<Vec<_>>()
+                "Unsupported file format(s) for rubric evaluation: {:?}",
+                unsupported_for_rubric.iter().map(|p| p.as_path()).collect::<Vec<_>>()
             );
         }
 
         let mut success_count = 0u32;
         let mut error_count = 0u32;
 
-        logger.info("=== Profile Evaluation ===");
+        logger.info("=== Rubric Evaluation ===");
 
         for input_file in &input_files {
             logger.info(&format!("  📄 Processing: {} ...", input_file.display()));
-            match run_profile_evaluation(input_file, profile_path, cli.report_format) {
+            match run_rubric_evaluation(input_file, rubric_path, cli.report_format) {
                 Ok(_) => {
                     logger.info("     ✅ Done");
                     success_count += 1;
@@ -346,7 +347,7 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
 
     anyhow::bail!(
         "No operation specified. Use --create-test FILE to create a test asset, \
-        --validate to validate assets, --profile FILE to evaluate a profile, or \
+        --validate to validate assets, --rubric FILE to evaluate a rubric, or \
         --batch FILE to run a batch of commands."
     );
 }
