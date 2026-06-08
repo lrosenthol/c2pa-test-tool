@@ -18,7 +18,7 @@ use crate::processing::{
     detect_signing_algorithm, parse_signing_algorithm, process_single_file, ProcessingConfig,
 };
 
-/// A C2PA validator test case loaded from a JSON file.
+/// A C2PA validator test case loaded from a YAML file.
 /// Follows the schema defined in `INTERNAL/schemas/test-case.schema.json`.
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +28,8 @@ pub struct TestCase {
     #[allow(dead_code)]
     pub description: Option<String>,
     pub input_asset: Option<String>,
-    pub manifest: serde_json::Value,
+    pub alg: Option<String>,
+    pub manifest: String,
     pub signing_cert: String,
     pub signing_key: Option<String>,
     pub tsa_url: Option<String>,
@@ -36,9 +37,9 @@ pub struct TestCase {
     pub expected_results: Option<serde_json::Value>,
 }
 
-/// Handle the `--create-test` mode: read a test case JSON file and produce a signed asset.
+/// Handle the `--create-test` mode: read a test case YAML file and produce a signed asset.
 /// If `input_override` is provided, it takes precedence over the `inputAsset` field in the
-/// test case JSON. If neither is present, an error is returned.
+/// test case YAML. If neither is present, an error is returned.
 pub fn handle_create_test(
     test_case_path: &Path,
     input_override: Option<&Path>,
@@ -49,10 +50,10 @@ pub fn handle_create_test(
         test_case_path
     );
 
-    let json_str =
-        fs::read_to_string(test_case_path).context("Failed to read test case JSON file")?;
-    let test_case: TestCase = serde_json::from_str(&json_str)
-        .context("Failed to parse test case JSON (does it match the test case schema?)")?;
+    let yaml_str =
+        fs::read_to_string(test_case_path).context("Failed to read test case YAML file")?;
+    let test_case: TestCase = serde_yaml::from_str(&yaml_str)
+        .context("Failed to parse test case YAML (does it match the test case schema?)")?;
 
     // All paths in the test case are resolved relative to the test case file's directory
     let base_dir = test_case_path
@@ -60,14 +61,14 @@ pub fn handle_create_test(
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."));
 
-    // CLI input overrides the JSON inputAsset field; error if neither is provided
+    // CLI input overrides the YAML inputAsset field; error if neither is provided
     let input_asset = if let Some(override_path) = input_override {
         override_path.to_path_buf()
     } else if let Some(ref asset) = test_case.input_asset {
         base_dir.join(asset)
     } else {
         anyhow::bail!(
-            "No input asset specified: the test case JSON does not include 'inputAsset' and \
+            "No input asset specified: the test case YAML does not include 'inputAsset' and \
             no input file was provided on the command line."
         )
     };
@@ -79,16 +80,14 @@ pub fn handle_create_test(
             .unwrap_or(&test_case.signing_cert),
     );
 
-    // Serialize the manifest object back to JSON string for the builder
-    let manifest_json = serde_json::to_string(&test_case.manifest)
-        .context("Failed to serialize manifest from test case")?;
+    // Strip trailing newline added by YAML block scalar, use directly as JSON string
+    let manifest_json = test_case.manifest.trim().to_owned();
 
-    // Determine signing algorithm from manifest.alg, or auto-detect from certificate
-    let signing_alg = if let Some(alg_str) = test_case.manifest.get("alg").and_then(|v| v.as_str())
-    {
+    // Determine signing algorithm from top-level alg field, or auto-detect from certificate
+    let signing_alg = if let Some(ref alg_str) = test_case.alg {
         parse_signing_algorithm(alg_str)?
     } else {
-        println!("No alg in manifest — auto-detecting signing algorithm from certificate...");
+        println!("No alg in test case — auto-detecting signing algorithm from certificate...");
         let detected = detect_signing_algorithm(&cert)?;
         println!("  Detected: {:?}", detected);
         detected
@@ -120,4 +119,47 @@ pub fn handle_create_test(
     println!("\n✓ Test asset created successfully");
     println!("  Output: {:?}", output);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MINIMAL_YAML: &str = r#"
+testId: test.minimal
+signingCert: certs/test.pem
+manifest: |
+  {"claim_generator_info": [{"name": "test"}], "assertions": []}
+"#;
+
+    const YAML_WITH_ALG: &str = r#"
+testId: test.with-alg
+alg: Es256
+signingCert: certs/test.pem
+manifest: |
+  {"claim_generator_info": [{"name": "test"}], "assertions": []}
+"#;
+
+    #[test]
+    fn test_parse_yaml_minimal() {
+        let tc: TestCase = serde_yaml::from_str(MINIMAL_YAML).expect("failed to parse YAML");
+        assert_eq!(tc.test_id, "test.minimal");
+        assert_eq!(tc.signing_cert, "certs/test.pem");
+        assert!(tc.manifest.trim().starts_with('{'));
+        assert!(tc.alg.is_none());
+    }
+
+    #[test]
+    fn test_parse_yaml_with_alg() {
+        let tc: TestCase = serde_yaml::from_str(YAML_WITH_ALG).expect("failed to parse YAML");
+        assert_eq!(tc.alg.as_deref(), Some("Es256"));
+    }
+
+    #[test]
+    fn test_manifest_is_valid_json_after_trim() {
+        let tc: TestCase = serde_yaml::from_str(MINIMAL_YAML).expect("failed to parse YAML");
+        let trimmed = tc.manifest.trim();
+        serde_json::from_str::<serde_json::Value>(trimmed)
+            .expect("trimmed manifest must be valid JSON");
+    }
 }
