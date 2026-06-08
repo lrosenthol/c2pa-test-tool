@@ -68,8 +68,8 @@ impl Logger {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Path or glob pattern for test case JSON file(s) (C2PA test case schema).
-    /// Supports glob patterns (e.g., "test-cases/positive/tc-*.json", "test-cases/**/*.json").
+    /// Path or glob pattern for test case YAML file(s) (C2PA test case schema).
+    /// Supports glob patterns (e.g., "test-cases/positive/tc-*.yaml", "test-cases/**/*.yaml").
     /// Reads all signing configuration (manifest, cert, key, algorithm, TSA URL) from each file.
     /// Use with -o to specify the output file or directory (directory required for multiple matches).
     #[arg(short = 't', long = "create-test", value_name = "PATTERN")]

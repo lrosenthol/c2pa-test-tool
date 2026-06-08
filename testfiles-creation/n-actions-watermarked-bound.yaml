@@ -1,0 +1,36 @@
+testId: c2pa.test.actions-watermarked-bound
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "n-actions-placed",
+    "assertions": [
+      {
+        "label": "c2pa.actions",
+        "data": {
+          "actions": [
+            {
+              "action": "c2pa.created",
+              "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia",
+              "when": "2026-01-17T14:44:19.231Z"
+            },
+            {
+              "action": "c2pa.watermarked.bound",
+              "when": "2026-01-17T15:44:19.231Z",
+              "parameters": {}
+            }
+          ]
+        },
+        "created": true
+      }
+    ],
+    "ingredients": []
+  }

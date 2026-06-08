@@ -1,0 +1,43 @@
+testId: c2pa.test.actions-opened-no-manifest
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "p-actions-opened-no-manifest",
+    "assertions": [
+      {
+        "label": "c2pa.actions",
+        "data": {
+          "actions": [
+            {
+              "action": "c2pa.opened",
+              "when": "2026-01-17T14:44:19.231Z",
+              "parameters": {
+                "ingredientIds": [
+                  "PARENT"
+                ]
+              }
+            }
+          ]
+        },
+        "created": true
+      }
+    ],
+    "ingredients": [
+      {
+        "title": "Test",
+        "format": "image/jpeg",
+        "relationship": "parentOf",
+        "label": "PARENT",
+        "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+      }
+    ]
+  }

@@ -2,7 +2,7 @@
 
 A CLI tool for working with [C2PA (Coalition for Content Provenance and Authenticity)](https://c2pa.org) Content Credentials. Provides three core capabilities:
 
-1. **Create test assets** — sign media files with C2PA manifests from test-case JSON files
+1. **Create test assets** — sign media files with C2PA manifests from test-case YAML files
 2. **Validate assets** — validate assets against a YAML grammar *(scaffolded; grammar TBD)*
 3. **Profile evaluation** — evaluate crJSON indicators against a YAML asset profile
 
@@ -32,17 +32,17 @@ c2pa-test-tool [OPTIONS] [INPUT_FILE]...
 
 ### Create test assets
 
-Sign a media file with a C2PA manifest defined in a test-case JSON file:
+Sign a media file with a C2PA manifest defined in a test-case YAML file:
 
 ```bash
 # Single test case
-c2pa-test-tool --create-test test-cases/positive/tc-created.json --output output/tc-created.jpg
+c2pa-test-tool --create-test test-cases/positive/tc-created.yaml --output output/tc-created.jpg
 
 # Glob pattern — multiple test cases, output to directory
-c2pa-test-tool --create-test "test-cases/positive/tc-*.json" --output output/
+c2pa-test-tool --create-test "test-cases/positive/tc-*.yaml" --output output/
 
 # Override the input asset on the command line
-c2pa-test-tool --create-test tc.json tests/fixtures/assets/raw/Dog.jpg --output output/
+c2pa-test-tool --create-test tc.yaml tests/fixtures/assets/raw/Dog.jpg --output output/
 ```
 
 ### Validate assets *(scaffold)*
@@ -81,7 +81,7 @@ c2pa-test-tool --trust --profile profiles/... indicators.json
 
 | Flag | Description |
 |------|-------------|
-| `-t / --create-test PATTERN` | Path or glob to test-case JSON file(s) |
+| `-t / --create-test PATTERN` | Path or glob to test-case YAML file(s) |
 | `--validate` | Validate input assets *(scaffold; grammar TBD)* |
 | `--grammar FILE` | YAML grammar for validation (use with `--validate`) |
 | `--profile FILE` | YAML asset profile for profile evaluation |
@@ -92,19 +92,23 @@ c2pa-test-tool --trust --profile profiles/... indicators.json
 | `-q / --quiet` | Suppress progress output |
 | `-l / --log FILE` | Write progress to a log file |
 
-## Test-case JSON format
+## Test-case YAML format
 
 Test-case files follow the schema in `INTERNAL/schemas/test-case.schema.json`:
 
-```json
-{
-  "testId": "tc-created",
-  "title": "Created image",
-  "inputAsset": "../tests/fixtures/assets/raw/Dog.jpg",
-  "manifest": { ... },
-  "signingCert": "../tests/fixtures/certs/es256_cert.pem",
-  "signingKey":  "../tests/fixtures/certs/es256_private.pem"
-}
+```yaml
+testId: tc-created
+title: Created image
+alg: Es256
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+manifest: |
+  {
+    "claim_generator_info": [{ "name": "crTool", "version": "0.1.0" }],
+    "assertions": [
+      { "label": "c2pa.actions", "data": { "actions": [{ "action": "c2pa.created" }] } }
+    ]
+  }
 ```
 
 All paths in a test-case file are resolved relative to the test-case file's directory.

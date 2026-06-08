@@ -1,0 +1,72 @@
+testId: c2pa.test.actions-changes-spatial
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "p-actions-changes-spatial",
+    "assertions": [
+      {
+        "label": "c2pa.actions.v2",
+        "data": {
+          "actions": [
+            {
+              "action": "c2pa.created",
+              "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture",
+              "when": "2026-01-17T14:44:19.231Z"
+            },
+            {
+              "action": "c2pa.edited",
+              "when": "2026-01-18T10:22:15.123Z",
+              "changes": [
+                {
+                  "region": [
+                    {
+                      "type": "spatial",
+                      "shape": {
+                        "type": "polygon",
+                        "unit": "pixel",
+                        "origin": {
+                          "x": 100.0,
+                          "y": 150.0
+                        },
+                        "vertices": [
+                          {
+                            "x": 100.0,
+                            "y": 150.0
+                          },
+                          {
+                            "x": 500.0,
+                            "y": 150.0
+                          },
+                          {
+                            "x": 500.0,
+                            "y": 450.0
+                          },
+                          {
+                            "x": 100.0,
+                            "y": 450.0
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "name": "Sky adjustment",
+                  "description": "Color correction applied to sky region"
+                }
+              ]
+            }
+          ]
+        },
+        "created": true
+      }
+    ],
+    "ingredients": []
+  }

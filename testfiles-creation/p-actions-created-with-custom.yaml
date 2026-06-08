@@ -1,0 +1,51 @@
+testId: c2pa.test.actions-created-with-custom
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "p-actions-created-with-custom",
+    "assertions": [
+      {
+        "label": "c2pa.actions.v2",
+        "data": {
+          "actions": [
+            {
+              "action": "c2pa.created",
+              "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia",
+              "when": "2026-01-17T14:44:19.231Z"
+            }
+          ]
+        },
+        "created": true
+      },
+      {
+        "label": "com.adobe.parent-lineage",
+        "data": {
+          "parents": [
+            {
+              "documentID": "xmp:did:a1b2c3d4-e5f6-4789-a012-3456789abcde",
+              "instanceID": "xmp:iid:a1b2c3d4-e5f6-4789-a012-3456789abcde",
+              "repoAssetId": "urn:aaid:sc:US:asset-id-aaaaaaaa-90ab-cdef-1234-567890abcdef",
+              "repoVersion": "1"
+            },
+            {
+              "documentID": "xmp:did:aemd1",
+              "instanceID": "xmp:iid:aemi1",
+              "aemAssetId": "6db4d9d3-d11b-4907-9e9d-8d1f56498c5b",
+              "aemVersionId": "version-2",
+              "aemRepositoryId": "author-p12345-e67890.adobeaemcloud.com"
+            }
+          ]
+        }
+      }
+    ],
+    "ingredients": []
+  }
