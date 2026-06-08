@@ -42,6 +42,10 @@ cargo test test_dog_png
 - ✅ `test_dog_webp_full_manifest` - Embeds full manifest into Dog.webp
 - ✅ `test_all_images_both_manifests` - Batch test of all combinations
 
+### Test Case Creation Tests (`tests/src/test_creation.rs`)
+
+- ✅ `test_all_testfiles_creation` — Runs every YAML file in `testfiles-creation/` through the CLI, rotating across five input formats (JPEG, PNG, WebP, SVG, MP4). Asserts each run succeeds and produces a non-empty output file.
+
 ### Helper Tests (`tests/src/common/mod.rs::tests`)
 
 - ✅ `test_fixtures_exist` - Verifies test directory structure
