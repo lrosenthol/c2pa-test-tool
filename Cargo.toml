@@ -62,6 +62,10 @@ path = "tests/src/integration_tests.rs"
 name = "test_profile_evaluation"
 path = "tests/src/test_profile_evaluation.rs"
 
+[[test]]
+name = "test_creation"
+path = "tests/src/test_creation.rs"
+
 [profile.release]
 opt-level = 3
 lto = true

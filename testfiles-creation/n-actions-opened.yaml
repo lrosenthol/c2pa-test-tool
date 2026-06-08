@@ -1,0 +1,30 @@
+testId: c2pa.test.actions-opened
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "n-actions-opened",
+    "assertions": [
+      {
+        "label": "c2pa.actions",
+        "data": {
+          "actions": [
+            {
+              "action": "c2pa.opened",
+              "when": "2026-01-17T14:44:19.231Z"
+            }
+          ]
+        },
+        "created": true
+      }
+    ],
+    "ingredients": []
+  }

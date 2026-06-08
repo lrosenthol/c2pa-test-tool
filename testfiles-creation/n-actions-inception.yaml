@@ -1,0 +1,36 @@
+testId: c2pa.test.actions-inception
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "n-actions-inception",
+    "assertions": [
+      {
+        "label": "c2pa.actions.v2",
+        "data": {
+          "actions": [
+            {
+              "action": "c2pa.cropped",
+              "when": "2024-01-07T11:20:00Z",
+              "softwareAgent": {
+                "name": "ImageTools Studio",
+                "version": "4.2.1"
+              },
+              "description": "Cropped to 16:9 aspect ratio"
+            }
+          ],
+          "allActionsIncluded": true
+        },
+        "created": true
+      }
+    ],
+    "ingredients": []
+  }

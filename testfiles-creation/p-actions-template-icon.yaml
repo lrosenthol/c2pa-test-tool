@@ -1,0 +1,65 @@
+testId: c2pa.test.actions-template-icon
+signingCert: ../tests/fixtures/certs/es256_cert.pem
+signingKey: ../tests/fixtures/certs/es256_private.pem
+tsaUrl: "http://timestamp.digicert.com"
+manifest: |
+  {
+    "claim_generator_info": [
+      {
+        "name": "crTool",
+        "version": "0.1.0",
+        "specVersion": "2.3"
+      }
+    ],
+    "title": "p-actions-template",
+    "assertions": [
+      {
+        "label": "c2pa.actions.v2",
+        "data": {
+          "actions": [
+            {
+              "action": "com.joesphoto.filter",
+              "when": "2026-01-26T18:44:26.218Z"
+            },
+            {
+              "action": "c2pa.edited",
+              "when": "2026-01-26T18:44:26.218Z"
+            },
+            {
+              "action": "com.joesphoto.filter",
+              "when": "2026-01-26T18:44:26.218Z"
+            },
+            {
+              "action": "c2pa.cropped",
+              "when": "2026-01-26T18:44:26.218Z"
+            }
+          ],
+          "templates": [
+            {
+              "action": "com.joesphoto.filter",
+              "description": "Magic Filter",
+              "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/compositeSynthetic",
+              "softwareAgent": {
+                "name": "Joe's Photo Editor",
+                "version": "2.0",
+                "operating_system": "Windows 10"
+              },
+              "icon": {
+                "format": "image/svg+xml",
+                "identifier": "logo.svg"
+              }
+            }
+          ]
+        },
+        "created": true
+      }
+    ],
+    "ingredients": [
+      {
+        "title": "Test",
+        "format": "image/jpeg",
+        "relationship": "parentOf",
+        "label": "PARENT"
+      }
+    ]
+  }
