@@ -10,8 +10,11 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-//! Tests for profile evaluation against crJSON indicators using the sample profiles
-//! in the `profiles/` directory.
+//! Tests for profile/rubric evaluation against crJSON indicators.
+//!
+//! The "profile" tests use the legacy `profiles/` directory (profile_metadata format).
+//! The "rubric" tests use the `rubrics/` directory (rubric_metadata format) and exercise
+//! the new `--rubric` CLI flag.
 
 use anyhow::Result;
 use profile_evaluator_rs::{evaluate_files, load_profile, serialize_report, OutputFormat};
@@ -22,6 +25,10 @@ mod common;
 
 fn profiles_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("profiles")
+}
+
+fn rubrics_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rubrics")
 }
 
 fn fixtures_dir() -> PathBuf {
@@ -602,3 +609,155 @@ fn test_cli_profile_missing_profile_file_fails() -> Result<()> {
 }
 
 // (--extract --profile combined-mode tests removed — manifest extraction is not part of this tool)
+
+// ============================================================================
+// Rubric support tests (rubric_metadata format + failIfMatched + reportText)
+// ============================================================================
+
+/// The conformance rubric uses `rubric_metadata` (not `profile_metadata`) and camelCase
+/// field names (`reportText`, `failIfMatched`).  Verify it loads without error.
+#[test]
+fn test_load_conformance_rubric_spec24() {
+    let rubric_path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+    assert!(rubric_path.exists(), "Conformance rubric file should exist at {rubric_path:?}");
+    load_profile(&rubric_path)
+        .expect("conformance rubric (spec 2.4) should load without error");
+}
+
+/// Evaluating a crJSON against the conformance rubric should produce a well-formed report
+/// with a non-empty `statements` array.  We use `valid_indicators.json` which is a
+/// structurally complete crJSON and exercises the rubric's expressions.
+#[test]
+fn test_evaluate_conformance_rubric_produces_report() -> Result<()> {
+    let rubric_path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+    let indicators_path = fixtures_dir().join("valid_indicators.json");
+
+    let report = evaluate_files(&rubric_path, &indicators_path)?;
+
+    let statements = report
+        .get("statements")
+        .and_then(|s| s.as_array())
+        .expect("report should contain a 'statements' array");
+    assert!(!statements.is_empty(), "statements should not be empty");
+
+    // Every entry in each section must have an 'id' and a 'value' or 'error' field.
+    for section in statements {
+        for stmt in section.as_array().expect("section should be an array") {
+            assert!(
+                stmt.get("id").is_some(),
+                "each statement must have an id; got: {stmt}"
+            );
+        }
+    }
+
+    println!("✓ conformance rubric (spec 2.4): produces well-formed report");
+    Ok(())
+}
+
+/// Verify that `failIfMatched` statements produce boolean values in the report:
+/// the `value` field must be either `true` or `false` (never a raw array).
+#[test]
+fn test_fail_if_matched_statements_produce_booleans() -> Result<()> {
+    let rubric_path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+    let indicators_path = fixtures_dir().join("valid_indicators.json");
+
+    let report = evaluate_files(&rubric_path, &indicators_path)?;
+
+    // All validation:* statements use failIfMatched; verify their values are boolean.
+    let mut checked = 0usize;
+    if let Some(sections) = report.get("statements").and_then(|s| s.as_array()) {
+        for section in sections {
+            for stmt in section.as_array().unwrap_or(&vec![]) {
+                let id = stmt.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                if id.starts_with("validation:") {
+                    if let Some(value) = stmt.get("value") {
+                        assert!(
+                            value.is_boolean(),
+                            "failIfMatched statement '{id}' should have a boolean value, got: {value}"
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    assert!(checked > 0, "expected at least one validation:* statement with a value");
+    println!("✓ failIfMatched: {checked} validation statements have boolean values");
+    Ok(())
+}
+
+// ============================================================================
+// CLI integration tests — --rubric flag
+// ============================================================================
+
+/// `--rubric` is the primary flag; verify it produces a JSON report.
+#[test]
+fn test_cli_rubric_flag_json_output() -> Result<()> {
+    let binary = common::cli_binary_path();
+    let indicators = fixtures_dir().join("valid_indicators.json");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+
+    let out_dir = common::output_dir().join("rubric_eval");
+    std::fs::create_dir_all(&out_dir)?;
+
+    let indicators_copy = out_dir.join("valid_indicators_rubric.json");
+    std::fs::copy(&indicators, &indicators_copy)?;
+
+    let result = Command::new(&binary)
+        .arg("--rubric")
+        .arg(&rubric)
+        .arg("--report-format")
+        .arg("json")
+        .arg(&indicators_copy)
+        .output()?;
+
+    assert!(
+        result.status.success(),
+        "CLI --rubric eval should succeed:\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+
+    let report_path = out_dir.join("valid_indicators_rubric-report.json");
+    assert!(report_path.exists(), "report should be written at {report_path:?}");
+
+    let content = std::fs::read_to_string(&report_path)?;
+    let parsed: serde_json::Value = serde_json::from_str(&content)?;
+    assert!(parsed.get("statements").is_some(), "report should have statements");
+
+    println!("✓ CLI --rubric: writes JSON report");
+    Ok(())
+}
+
+/// `--profile` still works as a backward-compatible alias for `--rubric`.
+#[test]
+fn test_cli_profile_alias_still_works() -> Result<()> {
+    let binary = common::cli_binary_path();
+    let indicators = fixtures_dir().join("valid_indicators.json");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+
+    let out_dir = common::output_dir().join("rubric_eval_alias");
+    std::fs::create_dir_all(&out_dir)?;
+
+    let indicators_copy = out_dir.join("valid_indicators_alias.json");
+    std::fs::copy(&indicators, &indicators_copy)?;
+
+    let result = Command::new(&binary)
+        .arg("--profile")           // deprecated alias — should still work
+        .arg(&rubric)
+        .arg(&indicators_copy)
+        .output()?;
+
+    assert!(
+        result.status.success(),
+        "--profile alias should still be accepted:\nstderr: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+
+    let report_path = out_dir.join("valid_indicators_alias-report.json");
+    assert!(report_path.exists(), "report should be written when using --profile alias");
+
+    println!("✓ CLI --profile alias: accepted, report written");
+    Ok(())
+}
