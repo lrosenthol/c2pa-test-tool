@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **Create test assets** — sign media files with C2PA manifests from test-case JSON
 2. **Validate assets** — validate assets against a YAML grammar *(scaffold; grammar TBD)*
-3. **Profile evaluation** — evaluate crJSON indicators against a YAML asset profile
+3. **Rubric evaluation** — evaluate a YAML rubric against crJSON indicators or a signed C2PA asset
 
 ## Technologies
 
@@ -45,7 +45,7 @@ Single-crate package. The lib (`crtool`) exports trust utilities; the binary (`c
 | `src/processing.rs` | C2PA manifest signing, ingredient loading, thumbnail generation, algorithm detection |
 | `src/test_case.rs` | Test asset creation: reads `TestCase` JSON, resolves paths, calls processing |
 | `src/batch.rs` | Batch command execution from a batch JSON file |
-| `src/profile.rs` | Evaluates crJSON indicators against YAML asset profiles |
+| `src/profile.rs` | Rubric evaluation: accepts crJSON files or signed assets (extracts crJSON via `c2pa::Reader`) |
 
 ### Critical Path Dependency
 
@@ -57,7 +57,7 @@ The project depends on `c2pa-rs` and `profile-evaluator-rs` via local paths (`..
 |------|------|----------------|
 | `-t / --create-test <PATTERN>` | Create test asset | Test-case JSON (glob) → signed media file(s) |
 | `--validate` | Validate assets *(scaffold)* | Media files → pass/fail |
-| `--profile <FILE>` | Profile evaluation | crJSON indicators + YAML profile → JSON/YAML report |
+| `--rubric <FILE>` | Rubric evaluation | crJSON file or signed asset + YAML rubric → YAML report (default) or JSON; asset triggers automatic crJSON extraction |
 | `-b / --batch <FILE>` | Batch execution | Batch JSON → sequential command results |
 
 ### Schemas & Test Assets

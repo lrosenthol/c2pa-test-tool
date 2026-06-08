@@ -10,553 +10,158 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-//! Tests for profile/rubric evaluation against crJSON indicators.
+//! Tests for rubric evaluation against signed assets.
 //!
-//! The "profile" tests use the legacy `profiles/` directory (profile_metadata format).
-//! The "rubric" tests use the `rubrics/` directory (rubric_metadata format) and exercise
-//! the new `--rubric` CLI flag.
+//! All tests use the `rubrics/` directory (rubric_metadata format) and the signed
+//! asset fixtures under `tests/fixtures/assets/signed/`.
 
 use anyhow::Result;
-use profile_evaluator_rs::{evaluate_files, load_profile, serialize_report, OutputFormat};
+use profile_evaluator_rs::load_profile;
 use std::path::PathBuf;
 use std::process::Command;
 
 mod common;
 
-fn profiles_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("profiles")
-}
-
 fn rubrics_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rubrics")
 }
 
-fn fixtures_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/jsons")
-}
-
-/// Find the compliance statement in the report and return its boolean value.
-fn compliance_value(report: &serde_json::Value) -> Option<bool> {
-    report
-        .get("statements")
-        .and_then(|s| s.as_array())
-        .and_then(|sections| {
-            sections.iter().find_map(|section| {
-                section.as_array()?.iter().find_map(|stmt| {
-                    if stmt.get("id")?.as_str()? == "c2pa:profile_compliance" {
-                        stmt.get("value")?.as_bool()
-                    } else {
-                        None
-                    }
-                })
-            })
-        })
-}
-
 // ============================================================================
-// Profile loading tests
+// Rubric loading tests — all rubric files
 // ============================================================================
 
 #[test]
-fn test_load_real_life_capture_profile() {
-    let profile_path = profiles_dir().join("real-life-capture_profile.yml");
-    assert!(profile_path.exists(), "Profile file should exist");
-    load_profile(&profile_path).expect("real-life-capture profile should load without error");
+fn test_load_conformance_rubric_spec24() {
+    let path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+    assert!(path.exists(), "rubric should exist at {path:?}");
+    load_profile(&path).expect("conformance rubric (spec 2.4) should load without error");
 }
 
 #[test]
-fn test_load_real_media_profile() {
-    let profile_path = profiles_dir().join("real-media_profile.yml");
-    assert!(profile_path.exists(), "Profile file should exist");
-    load_profile(&profile_path).expect("real-media profile should load without error");
+fn test_load_conformance_rubric_spec22_v02() {
+    let path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.2.yml");
+    assert!(path.exists(), "rubric should exist at {path:?}");
+    load_profile(&path).expect("conformance rubric 0.2 (spec 2.2) should load without error");
 }
 
 #[test]
-fn test_load_human_illustration_profile() {
-    let profile_path = profiles_dir().join("human-illustration_profile.yml");
-    assert!(profile_path.exists(), "Profile file should exist");
-    load_profile(&profile_path).expect("human-illustration profile should load without error");
+fn test_load_conformance_rubric_spec22_v01() {
+    let path = rubrics_dir().join("asset-rubric-conformance0.1-spec2.2.yml");
+    assert!(path.exists(), "rubric should exist at {path:?}");
+    load_profile(&path).expect("conformance rubric 0.1 (spec 2.2) should load without error");
 }
 
 #[test]
-fn test_load_fully_generative_ai_profile() {
-    let profile_path = profiles_dir().join("fully-generative-ai_profile.yml");
-    assert!(profile_path.exists(), "Profile file should exist");
-    load_profile(&profile_path).expect("fully-generative-ai profile should load without error");
-}
-
-// ============================================================================
-// Compliance evaluation tests – compliant fixtures
-// ============================================================================
-
-#[test]
-fn test_real_life_capture_profile_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-life-capture_profile.yml"),
-        fixtures_dir().join("real_life_capture_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(true),
-        "real_life_capture_indicators should be compliant with real-life-capture profile; report: {}",
-        serde_json::to_string_pretty(&report).unwrap_or_default()
-    );
-    println!("✓ real-life-capture profile: compliant fixture passes");
-    Ok(())
+fn test_load_integrity_rubric() {
+    let path = rubrics_dir().join("asset-rubric-integrity.yml");
+    assert!(path.exists(), "rubric should exist at {path:?}");
+    load_profile(&path).expect("integrity rubric should load without error");
 }
 
 #[test]
-fn test_real_media_profile_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-media_profile.yml"),
-        fixtures_dir().join("real_life_capture_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(true),
-        "real_life_capture_indicators should be compliant with real-media profile"
-    );
-    println!("✓ real-media profile: compliant fixture passes");
-    Ok(())
-}
-
-#[test]
-fn test_human_illustration_profile_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("human-illustration_profile.yml"),
-        fixtures_dir().join("human_illustration_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(true),
-        "human_illustration_indicators should be compliant with human-illustration profile; report: {}",
-        serde_json::to_string_pretty(&report).unwrap_or_default()
-    );
-    println!("✓ human-illustration profile: compliant fixture passes");
-    Ok(())
-}
-
-#[test]
-fn test_fully_generative_ai_profile_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("fully-generative-ai_profile.yml"),
-        fixtures_dir().join("generative_ai_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(true),
-        "generative_ai_indicators should be compliant with fully-generative-ai profile; report: {}",
-        serde_json::to_string_pretty(&report).unwrap_or_default()
-    );
-    println!("✓ fully-generative-ai profile: compliant fixture passes");
-    Ok(())
+fn test_load_signals_local_rubric() {
+    let path = rubrics_dir().join("asset-rubric-signals-local.yml");
+    assert!(path.exists(), "rubric should exist at {path:?}");
+    load_profile(&path).expect("signals-local rubric should load without error");
 }
 
 // ============================================================================
-// Compliance evaluation tests – non-compliant fixture
+// CLI integration tests — --rubric flag
 // ============================================================================
 
+/// Default output format is YAML: omitting --report-format should produce a .yaml report.
 #[test]
-fn test_real_life_capture_profile_non_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-life-capture_profile.yml"),
-        fixtures_dir().join("non_compliant_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "non_compliant_indicators should NOT be compliant with real-life-capture profile"
-    );
-    println!("✓ real-life-capture profile: non-compliant fixture correctly fails");
-    Ok(())
-}
-
-#[test]
-fn test_real_media_profile_non_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-media_profile.yml"),
-        fixtures_dir().join("non_compliant_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "non_compliant_indicators should NOT be compliant with real-media profile"
-    );
-    println!("✓ real-media profile: non-compliant fixture correctly fails");
-    Ok(())
-}
-
-#[test]
-fn test_generative_ai_profile_non_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("fully-generative-ai_profile.yml"),
-        fixtures_dir().join("non_compliant_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "non_compliant_indicators should NOT be compliant with fully-generative-ai profile"
-    );
-    println!("✓ fully-generative-ai profile: non-compliant fixture correctly fails");
-    Ok(())
-}
-
-/// Generative-AI indicators should not be compliant with the real-life-capture profile.
-#[test]
-fn test_cross_profile_gen_ai_fails_real_life_capture() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-life-capture_profile.yml"),
-        fixtures_dir().join("generative_ai_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "generative_ai_indicators should NOT be compliant with real-life-capture profile"
-    );
-    println!("✓ cross-profile: gen-AI indicators correctly fail real-life-capture profile");
-    Ok(())
-}
-
-/// Real-life-capture indicators should not be compliant with the fully-generative-ai profile.
-#[test]
-fn test_cross_profile_real_capture_fails_generative_ai() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("fully-generative-ai_profile.yml"),
-        fixtures_dir().join("real_life_capture_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "real_life_capture_indicators should NOT be compliant with fully-generative-ai profile"
-    );
-    println!("✓ cross-profile: real-capture indicators correctly fail fully-generative-ai profile");
-    Ok(())
-}
-
-// ============================================================================
-// Report serialization tests
-// ============================================================================
-
-#[test]
-fn test_serialize_report_json() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-media_profile.yml"),
-        fixtures_dir().join("real_life_capture_indicators.json"),
-    )?;
-
-    let json_str = serialize_report(&report, OutputFormat::Json)?;
-
-    // Valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&json_str)?;
-    assert!(
-        parsed.get("statements").is_some(),
-        "JSON report should have statements"
-    );
-    assert!(
-        json_str.contains('\n'),
-        "JSON report should be pretty-printed"
-    );
-
-    println!("✓ Report serializes to valid pretty-printed JSON");
-    Ok(())
-}
-
-#[test]
-fn test_serialize_report_yaml() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-media_profile.yml"),
-        fixtures_dir().join("real_life_capture_indicators.json"),
-    )?;
-
-    let yaml_str = serialize_report(&report, OutputFormat::Yaml)?;
-
-    // Must round-trip through serde_yaml
-    let parsed: serde_yaml::Value = serde_yaml::from_str(&yaml_str)?;
-    assert!(
-        parsed.get("statements").is_some(),
-        "YAML report should have statements"
-    );
-
-    println!("✓ Report serializes to valid YAML");
-    Ok(())
-}
-
-// ============================================================================
-// Cross-profile compliance tests — missing combinations
-// ============================================================================
-
-/// Human-illustration indicators should not comply with the real-life-capture profile.
-#[test]
-fn test_cross_profile_human_illustration_fails_real_life_capture() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("real-life-capture_profile.yml"),
-        fixtures_dir().join("human_illustration_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "human_illustration_indicators should NOT comply with real-life-capture profile"
-    );
-    println!(
-        "✓ cross-profile: human-illustration indicators correctly fail real-life-capture profile"
-    );
-    Ok(())
-}
-
-/// Human-illustration indicators should not comply with the fully-generative-ai profile.
-#[test]
-fn test_cross_profile_human_illustration_fails_fully_generative_ai() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("fully-generative-ai_profile.yml"),
-        fixtures_dir().join("human_illustration_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "human_illustration_indicators should NOT comply with fully-generative-ai profile"
-    );
-    println!(
-        "✓ cross-profile: human-illustration indicators correctly fail fully-generative-ai profile"
-    );
-    Ok(())
-}
-
-/// Human-illustration profile non-compliant fixture test.
-#[test]
-fn test_human_illustration_profile_non_compliant() -> Result<()> {
-    let report = evaluate_files(
-        profiles_dir().join("human-illustration_profile.yml"),
-        fixtures_dir().join("non_compliant_indicators.json"),
-    )?;
-
-    assert_eq!(
-        compliance_value(&report),
-        Some(false),
-        "non_compliant_indicators should NOT comply with human-illustration profile"
-    );
-    println!("✓ human-illustration profile: non-compliant fixture correctly fails");
-    Ok(())
-}
-
-// ============================================================================
-// CLI integration tests (--profile flag)
-// ============================================================================
-
-#[test]
-fn test_cli_standalone_profile_eval_json_output() -> Result<()> {
+fn test_cli_rubric_default_output_is_yaml() -> Result<()> {
     let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("real_life_capture_indicators.json");
-    let profile = profiles_dir().join("real-life-capture_profile.yml");
+    let asset = common::signed_assets_dir().join("sig_es256.jpg");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    let out_dir = common::output_dir().join("profile_eval");
+    let out_dir = common::output_dir().join("rubric_default_format");
     std::fs::create_dir_all(&out_dir)?;
-
-    // Copy the indicators file into the output dir so the report lands there too
-    let indicators_copy = out_dir.join("rlc_indicators.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
+    let asset_copy = out_dir.join("sig_es256.jpg");
+    std::fs::copy(&asset, &asset_copy)?;
 
     let result = Command::new(&binary)
-        .arg("--profile")
-        .arg(&profile)
-        .arg("--report-format")
-        .arg("json")
-        .arg(&indicators_copy)
+        .arg("--rubric").arg(&rubric)
+        .arg(&asset_copy)
         .output()?;
 
     assert!(
         result.status.success(),
-        "CLI profile eval should succeed: {}",
+        "CLI --rubric should succeed:\nstderr: {}",
         String::from_utf8_lossy(&result.stderr)
     );
 
-    let report_path = out_dir.join("rlc_indicators-report.json");
+    let report_path = out_dir.join("sig_es256-report.yaml");
+    assert!(report_path.exists(), "default report should be YAML at {report_path:?}");
+
+    // Must be valid YAML with a statements field
+    let content = std::fs::read_to_string(&report_path)?;
+    let parsed: serde_json::Value = serde_yaml::from_str(&content)?;
+    assert!(parsed.get("statements").is_some(), "report should have statements");
+
+    // Confirm a .json report was NOT written
     assert!(
-        report_path.exists(),
-        "Report file should be created at {:?}",
-        report_path
+        !out_dir.join("sig_es256-report.json").exists(),
+        "a .json report should not exist when using the default format"
     );
+
+    println!("✓ CLI --rubric: default output is YAML");
+    Ok(())
+}
+
+/// Explicit --report-format json produces a .json report.
+#[test]
+fn test_cli_rubric_explicit_json_output() -> Result<()> {
+    let binary = common::cli_binary_path();
+    let asset = common::signed_assets_dir().join("sig_es256.jpg");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
+
+    let out_dir = common::output_dir().join("rubric_explicit_json");
+    std::fs::create_dir_all(&out_dir)?;
+    let asset_copy = out_dir.join("sig_es256.jpg");
+    std::fs::copy(&asset, &asset_copy)?;
+
+    let result = Command::new(&binary)
+        .arg("--rubric").arg(&rubric)
+        .arg("--report-format").arg("json")
+        .arg(&asset_copy)
+        .output()?;
+
+    assert!(
+        result.status.success(),
+        "CLI --rubric --report-format json should succeed:\nstderr: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+
+    let report_path = out_dir.join("sig_es256-report.json");
+    assert!(report_path.exists(), "JSON report should be at {report_path:?}");
 
     let content = std::fs::read_to_string(&report_path)?;
     let parsed: serde_json::Value = serde_json::from_str(&content)?;
-    assert!(
-        parsed.get("statements").is_some(),
-        "Report should have statements"
-    );
+    assert!(parsed.get("statements").is_some(), "JSON report should have statements");
 
-    println!("✓ CLI --profile standalone eval writes JSON report");
+    println!("✓ CLI --rubric --report-format json: writes JSON report");
     Ok(())
 }
 
+/// Multiple input files each get their own report.
 #[test]
-fn test_cli_standalone_profile_eval_yaml_output() -> Result<()> {
+fn test_cli_rubric_multiple_inputs_produce_separate_reports() -> Result<()> {
     let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("generative_ai_indicators.json");
-    let profile = profiles_dir().join("fully-generative-ai_profile.yml");
+    let asset = common::signed_assets_dir().join("sig_es256.jpg");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    let out_dir = common::output_dir().join("profile_eval");
+    let out_dir = common::output_dir().join("rubric_multi_input");
     std::fs::create_dir_all(&out_dir)?;
 
-    let indicators_copy = out_dir.join("genai_indicators.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
+    let copy1 = out_dir.join("asset_a.jpg");
+    let copy2 = out_dir.join("asset_b.jpg");
+    std::fs::copy(&asset, &copy1)?;
+    std::fs::copy(&asset, &copy2)?;
 
     let result = Command::new(&binary)
-        .arg("--profile")
-        .arg(&profile)
-        .arg("--report-format")
-        .arg("yaml")
-        .arg(&indicators_copy)
-        .output()?;
-
-    assert!(
-        result.status.success(),
-        "CLI profile eval should succeed: {}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-
-    let report_path = out_dir.join("genai_indicators-report.yaml");
-    assert!(
-        report_path.exists(),
-        "YAML report file should be created at {:?}",
-        report_path
-    );
-
-    let content = std::fs::read_to_string(&report_path)?;
-    let parsed: serde_yaml::Value = serde_yaml::from_str(&content)?;
-    assert!(
-        parsed.get("statements").is_some(),
-        "YAML report should have statements"
-    );
-
-    println!("✓ CLI --profile standalone eval writes YAML report");
-    Ok(())
-}
-
-/// CLI profile eval with non-compliant indicators: should exit 0 (evaluation itself succeeded),
-/// but the written report must record compliance as false.
-#[test]
-fn test_cli_standalone_profile_eval_non_compliant_exits_zero() -> Result<()> {
-    let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("non_compliant_indicators.json");
-    let profile = profiles_dir().join("real-life-capture_profile.yml");
-
-    let out_dir = common::output_dir().join("profile_eval_non_compliant");
-    std::fs::create_dir_all(&out_dir)?;
-
-    let indicators_copy = out_dir.join("non_compliant_indicators.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
-
-    let result = Command::new(&binary)
-        .arg("--profile")
-        .arg(&profile)
-        .arg(&indicators_copy)
-        .output()?;
-
-    println!("stdout: {}", String::from_utf8_lossy(&result.stdout));
-    println!("stderr: {}", String::from_utf8_lossy(&result.stderr));
-
-    assert!(
-        result.status.success(),
-        "CLI should exit 0 even for non-compliant content (evaluation ran successfully): {}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-
-    let report_path = out_dir.join("non_compliant_indicators-report.json");
-    assert!(
-        report_path.exists(),
-        "Report file should be written: {report_path:?}"
-    );
-
-    let content = std::fs::read_to_string(&report_path)?;
-    let parsed: serde_json::Value = serde_json::from_str(&content)?;
-    assert_eq!(
-        compliance_value(&parsed),
-        Some(false),
-        "Non-compliant input must produce compliance=false in the report"
-    );
-
-    println!("✓ CLI --profile non-compliant: exits 0, report has compliance=false");
-    Ok(())
-}
-
-/// CLI profile eval with wrong-profile cross-test: gen-AI indicators against real-life-capture.
-/// Should exit 0 and write a report with compliance=false.
-#[test]
-fn test_cli_standalone_profile_eval_wrong_profile_non_compliant() -> Result<()> {
-    let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("generative_ai_indicators.json");
-    let profile = profiles_dir().join("real-life-capture_profile.yml");
-
-    let out_dir = common::output_dir().join("profile_eval_cross");
-    std::fs::create_dir_all(&out_dir)?;
-
-    let indicators_copy = out_dir.join("genai_for_rlc.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
-
-    let result = Command::new(&binary)
-        .arg("--profile")
-        .arg(&profile)
-        .arg(&indicators_copy)
-        .output()?;
-
-    assert!(
-        result.status.success(),
-        "CLI should exit 0 even for cross-profile non-compliance: {}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-
-    let report_path = out_dir.join("genai_for_rlc-report.json");
-    assert!(
-        report_path.exists(),
-        "Report should be written: {report_path:?}"
-    );
-
-    let content = std::fs::read_to_string(&report_path)?;
-    let parsed: serde_json::Value = serde_json::from_str(&content)?;
-    assert_eq!(
-        compliance_value(&parsed),
-        Some(false),
-        "Gen-AI indicators should not comply with real-life-capture profile"
-    );
-
-    println!("✓ CLI --profile cross-profile: exits 0, report has compliance=false");
-    Ok(())
-}
-
-/// CLI profile eval with multiple input files: a separate report should be written for each.
-#[test]
-fn test_cli_standalone_profile_eval_multiple_inputs() -> Result<()> {
-    let binary = common::cli_binary_path();
-    let profile = profiles_dir().join("real-life-capture_profile.yml");
-
-    let out_dir = common::output_dir().join("profile_eval_multi");
-    std::fs::create_dir_all(&out_dir)?;
-
-    // Two indicator files that should both pass the real-life-capture profile
-    let copy1 = out_dir.join("rlc_multi_1.json");
-    let copy2 = out_dir.join("rlc_multi_2.json");
-    std::fs::copy(
-        fixtures_dir().join("real_life_capture_indicators.json"),
-        &copy1,
-    )?;
-    std::fs::copy(
-        fixtures_dir().join("real_life_capture_indicators.json"),
-        &copy2,
-    )?;
-
-    let result = Command::new(&binary)
-        .arg("--profile")
-        .arg(&profile)
+        .arg("--rubric").arg(&rubric)
         .arg(&copy1)
         .arg(&copy2)
         .output()?;
@@ -566,167 +171,147 @@ fn test_cli_standalone_profile_eval_multiple_inputs() -> Result<()> {
 
     assert!(
         result.status.success(),
-        "Multi-file profile eval should succeed: {}",
+        "multi-file rubric eval should succeed:\nstderr: {}",
         String::from_utf8_lossy(&result.stderr)
     );
 
-    let report1 = out_dir.join("rlc_multi_1-report.json");
-    let report2 = out_dir.join("rlc_multi_2-report.json");
-    assert!(report1.exists(), "Report 1 should be written: {report1:?}");
-    assert!(report2.exists(), "Report 2 should be written: {report2:?}");
+    let report1 = out_dir.join("asset_a-report.yaml");
+    let report2 = out_dir.join("asset_b-report.yaml");
+    assert!(report1.exists(), "report for asset_a should be written: {report1:?}");
+    assert!(report2.exists(), "report for asset_b should be written: {report2:?}");
 
-    println!("✓ CLI --profile multi-input: two reports written");
+    println!("✓ CLI --rubric multi-input: separate report written for each file");
     Ok(())
 }
 
-/// CLI profile eval with a nonexistent profile file must fail with a non-zero exit code.
+/// An unsupported file type (e.g. .txt) should cause a non-zero exit code.
 #[test]
-fn test_cli_profile_missing_profile_file_fails() -> Result<()> {
+fn test_cli_rubric_unsupported_file_type_fails() -> Result<()> {
     let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("real_life_capture_indicators.json");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    let out_dir = common::output_dir().join("profile_eval_error");
+    let out_dir = common::output_dir().join("rubric_unsupported_type");
     std::fs::create_dir_all(&out_dir)?;
-
-    let indicators_copy = out_dir.join("rlc_indicators_error.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
+    let bad_file = out_dir.join("not_an_asset.txt");
+    std::fs::write(&bad_file, "this is not a supported asset or crJSON file")?;
 
     let result = Command::new(&binary)
-        .arg("--profile")
-        .arg("/nonexistent/profile.yml")
-        .arg(&indicators_copy)
+        .arg("--rubric").arg(&rubric)
+        .arg(&bad_file)
         .output()?;
 
     println!("stderr: {}", String::from_utf8_lossy(&result.stderr));
 
     assert!(
         !result.status.success(),
-        "CLI should fail when profile file does not exist"
+        "CLI should fail with a non-zero exit code for an unsupported file type"
     );
 
-    println!("✓ CLI --profile missing profile file: correctly fails");
+    println!("✓ CLI --rubric unsupported file type: correctly fails");
     Ok(())
 }
 
-// (--extract --profile combined-mode tests removed — manifest extraction is not part of this tool)
-
-// ============================================================================
-// Rubric support tests (rubric_metadata format + failIfMatched + reportText)
-// ============================================================================
-
-/// The conformance rubric uses `rubric_metadata` (not `profile_metadata`) and camelCase
-/// field names (`reportText`, `failIfMatched`).  Verify it loads without error.
+/// A non-zero exit code is returned when at least one input fails evaluation.
 #[test]
-fn test_load_conformance_rubric_spec24() {
-    let rubric_path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
-    assert!(rubric_path.exists(), "Conformance rubric file should exist at {rubric_path:?}");
-    load_profile(&rubric_path)
-        .expect("conformance rubric (spec 2.4) should load without error");
-}
-
-/// Evaluating a crJSON against the conformance rubric should produce a well-formed report
-/// with a non-empty `statements` array.  We use `valid_indicators.json` which is a
-/// structurally complete crJSON and exercises the rubric's expressions.
-#[test]
-fn test_evaluate_conformance_rubric_produces_report() -> Result<()> {
-    let rubric_path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
-    let indicators_path = fixtures_dir().join("valid_indicators.json");
-
-    let report = evaluate_files(&rubric_path, &indicators_path)?;
-
-    let statements = report
-        .get("statements")
-        .and_then(|s| s.as_array())
-        .expect("report should contain a 'statements' array");
-    assert!(!statements.is_empty(), "statements should not be empty");
-
-    // Every entry in each section must have an 'id' and a 'value' or 'error' field.
-    for section in statements {
-        for stmt in section.as_array().expect("section should be an array") {
-            assert!(
-                stmt.get("id").is_some(),
-                "each statement must have an id; got: {stmt}"
-            );
-        }
-    }
-
-    println!("✓ conformance rubric (spec 2.4): produces well-formed report");
-    Ok(())
-}
-
-/// Verify that `failIfMatched` statements produce boolean values in the report:
-/// the `value` field must be either `true` or `false` (never a raw array).
-#[test]
-fn test_fail_if_matched_statements_produce_booleans() -> Result<()> {
-    let rubric_path = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
-    let indicators_path = fixtures_dir().join("valid_indicators.json");
-
-    let report = evaluate_files(&rubric_path, &indicators_path)?;
-
-    // All validation:* statements use failIfMatched; verify their values are boolean.
-    let mut checked = 0usize;
-    if let Some(sections) = report.get("statements").and_then(|s| s.as_array()) {
-        for section in sections {
-            for stmt in section.as_array().unwrap_or(&vec![]) {
-                let id = stmt.get("id").and_then(|v| v.as_str()).unwrap_or("");
-                if id.starts_with("validation:") {
-                    if let Some(value) = stmt.get("value") {
-                        assert!(
-                            value.is_boolean(),
-                            "failIfMatched statement '{id}' should have a boolean value, got: {value}"
-                        );
-                        checked += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    assert!(checked > 0, "expected at least one validation:* statement with a value");
-    println!("✓ failIfMatched: {checked} validation statements have boolean values");
-    Ok(())
-}
-
-// ============================================================================
-// CLI integration tests — --rubric flag
-// ============================================================================
-
-/// `--rubric` is the primary flag; verify it produces a JSON report.
-#[test]
-fn test_cli_rubric_flag_json_output() -> Result<()> {
+fn test_cli_rubric_partial_failure_exits_nonzero() -> Result<()> {
     let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("valid_indicators.json");
     let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    let out_dir = common::output_dir().join("rubric_eval");
+    let out_dir = common::output_dir().join("rubric_partial_failure");
     std::fs::create_dir_all(&out_dir)?;
 
-    let indicators_copy = out_dir.join("valid_indicators_rubric.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
+    // One valid signed asset and one file that will fail evaluation
+    let good = out_dir.join("good.jpg");
+    std::fs::copy(common::signed_assets_dir().join("sig_es256.jpg"), &good)?;
+
+    let bad = out_dir.join("bad.jpg");
+    std::fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/assets/raw/Dog.jpg"),
+        &bad,
+    )?;
 
     let result = Command::new(&binary)
-        .arg("--rubric")
-        .arg(&rubric)
-        .arg("--report-format")
-        .arg("json")
-        .arg(&indicators_copy)
+        .arg("--rubric").arg(&rubric)
+        .arg(&good)
+        .arg(&bad)
         .output()?;
 
+    println!("stdout: {}", String::from_utf8_lossy(&result.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&result.stderr));
+
     assert!(
-        result.status.success(),
-        "CLI --rubric eval should succeed:\nstdout: {}\nstderr: {}",
-        String::from_utf8_lossy(&result.stdout),
-        String::from_utf8_lossy(&result.stderr)
+        !result.status.success(),
+        "CLI should exit non-zero when at least one input fails"
     );
 
-    let report_path = out_dir.join("valid_indicators_rubric-report.json");
-    assert!(report_path.exists(), "report should be written at {report_path:?}");
+    println!("✓ CLI --rubric partial failure: exits non-zero");
+    Ok(())
+}
 
-    let content = std::fs::read_to_string(&report_path)?;
-    let parsed: serde_json::Value = serde_json::from_str(&content)?;
-    assert!(parsed.get("statements").is_some(), "report should have statements");
+/// A raw (unsigned) image has no C2PA manifest — should fail cleanly, not crash.
+#[test]
+fn test_cli_rubric_unsigned_asset_fails_cleanly() -> Result<()> {
+    let binary = common::cli_binary_path();
+    let raw_asset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/assets/raw/Dog.jpg");
+    let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    println!("✓ CLI --rubric: writes JSON report");
+    assert!(raw_asset.exists(), "raw asset fixture should exist at {raw_asset:?}");
+
+    let out_dir = common::output_dir().join("rubric_no_manifest");
+    std::fs::create_dir_all(&out_dir)?;
+    let asset_copy = out_dir.join("Dog.jpg");
+    std::fs::copy(&raw_asset, &asset_copy)?;
+
+    let result = Command::new(&binary)
+        .arg("--rubric").arg(&rubric)
+        .arg(&asset_copy)
+        .output()?;
+
+    println!("stdout: {}", String::from_utf8_lossy(&result.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&result.stderr));
+
+    // Should exit non-zero (no manifest to extract) but must not crash/panic
+    assert!(
+        !result.status.success(),
+        "CLI should fail gracefully for an asset with no C2PA manifest"
+    );
+    // Ensure it produced an error message, not a bare panic
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        !stderr.contains("panicked"),
+        "process should not have panicked; stderr: {stderr}"
+    );
+
+    println!("✓ CLI --rubric unsigned asset: fails cleanly with no panic");
+    Ok(())
+}
+
+/// A missing rubric file must cause a non-zero exit code.
+#[test]
+fn test_cli_rubric_missing_file_fails() -> Result<()> {
+    let binary = common::cli_binary_path();
+    let asset = common::signed_assets_dir().join("sig_es256.jpg");
+
+    let out_dir = common::output_dir().join("rubric_missing_rubric");
+    std::fs::create_dir_all(&out_dir)?;
+    let asset_copy = out_dir.join("sig_es256.jpg");
+    std::fs::copy(&asset, &asset_copy)?;
+
+    let result = Command::new(&binary)
+        .arg("--rubric").arg("/nonexistent/rubric.yml")
+        .arg(&asset_copy)
+        .output()?;
+
+    println!("stderr: {}", String::from_utf8_lossy(&result.stderr));
+
+    assert!(
+        !result.status.success(),
+        "CLI should fail when rubric file does not exist"
+    );
+
+    println!("✓ CLI --rubric missing rubric file: correctly fails");
     Ok(())
 }
 
@@ -734,19 +319,18 @@ fn test_cli_rubric_flag_json_output() -> Result<()> {
 #[test]
 fn test_cli_profile_alias_still_works() -> Result<()> {
     let binary = common::cli_binary_path();
-    let indicators = fixtures_dir().join("valid_indicators.json");
+    let asset = common::signed_assets_dir().join("sig_es256.jpg");
     let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    let out_dir = common::output_dir().join("rubric_eval_alias");
+    let out_dir = common::output_dir().join("rubric_profile_alias");
     std::fs::create_dir_all(&out_dir)?;
-
-    let indicators_copy = out_dir.join("valid_indicators_alias.json");
-    std::fs::copy(&indicators, &indicators_copy)?;
+    let asset_copy = out_dir.join("sig_es256.jpg");
+    std::fs::copy(&asset, &asset_copy)?;
 
     let result = Command::new(&binary)
         .arg("--profile")           // deprecated alias — should still work
         .arg(&rubric)
-        .arg(&indicators_copy)
+        .arg(&asset_copy)
         .output()?;
 
     assert!(
@@ -755,7 +339,7 @@ fn test_cli_profile_alias_still_works() -> Result<()> {
         String::from_utf8_lossy(&result.stderr)
     );
 
-    let report_path = out_dir.join("valid_indicators_alias-report.json");
+    let report_path = out_dir.join("sig_es256-report.yaml");
     assert!(report_path.exists(), "report should be written when using --profile alias");
 
     println!("✓ CLI --profile alias: accepted, report written");

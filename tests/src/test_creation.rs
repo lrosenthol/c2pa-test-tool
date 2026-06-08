@@ -33,7 +33,8 @@ const INPUT_ASSETS: &[(&str, &str)] = &[
 fn test_all_testfiles_creation() -> Result<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let testfiles_dir = manifest_dir.join("testfiles-creation");
-    let out_dir = output_dir();
+    let out_dir = output_dir().join("testfiles-creation");
+    std::fs::create_dir_all(&out_dir).expect("Failed to create testfiles-creation output dir");
     let binary = cli_binary_path();
 
     let mut yaml_files: Vec<PathBuf> = std::fs::read_dir(&testfiles_dir)?
