@@ -106,7 +106,7 @@ pub struct Cli {
     rubric: Option<PathBuf>,
 
     /// Output format for the rubric evaluation report (json or yaml)
-    #[arg(long, value_enum, default_value_t = ReportFormat::Json)]
+    #[arg(long, value_enum, default_value_t = ReportFormat::Yaml)]
     report_format: ReportFormat,
 
     /// Path to a batch JSON file — runs multiple commands in sequence
@@ -288,9 +288,9 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
 
         let unsupported_for_rubric: Vec<_> = input_files
             .iter()
-            .filter(|p| !crtool::is_supported_asset_path(p) && {
+            .filter(|p| {
                 let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-                ext != "json"
+                ext != "json" && !crtool::is_supported_asset_path(p)
             })
             .collect();
         if !unsupported_for_rubric.is_empty() {

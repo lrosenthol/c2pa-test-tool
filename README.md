@@ -4,7 +4,7 @@ A CLI tool for working with [C2PA (Coalition for Content Provenance and Authenti
 
 1. **Create test assets** — sign media files with C2PA manifests from test-case YAML files
 2. **Validate assets** — validate assets against a YAML grammar *(scaffolded; grammar TBD)*
-3. **Profile evaluation** — evaluate crJSON indicators against a YAML asset profile
+3. **Rubric evaluation** — evaluate a YAML rubric against crJSON indicators or a signed C2PA asset
 
 ## Prerequisites
 
@@ -52,14 +52,24 @@ c2pa-test-tool --validate image.jpg
 c2pa-test-tool --validate --grammar grammar.yml image.jpg image2.png
 ```
 
-### Profile evaluation
+### Rubric evaluation
 
-Evaluate crJSON indicators against a YAML asset profile:
+Evaluate a YAML rubric against a crJSON file or a signed C2PA asset. When a media asset is provided, its embedded manifest store is extracted to crJSON automatically before evaluation.
 
 ```bash
-c2pa-test-tool --profile profiles/real-life-capture_profile.yml indicators.json
-c2pa-test-tool --profile profiles/real-life-capture_profile.yml --report-format yaml indicators.json
+# Signed asset as input — crJSON is extracted from the asset's manifest store
+c2pa-test-tool --rubric rubrics/asset-rubric-conformance0.2-spec2.4.yml image.jpg
+
+# crJSON file as input (report written as indicators-report.yaml by default)
+c2pa-test-tool --rubric rubrics/asset-rubric-conformance0.2-spec2.4.yml indicators.json
+
+# Explicit JSON report format
+c2pa-test-tool --rubric rubrics/asset-rubric-conformance0.2-spec2.4.yml --report-format json image.jpg
 ```
+
+The report is written alongside the input file as `<stem>-report.<json|yaml>`.
+
+> `--profile` is accepted as a deprecated alias for `--rubric`.
 
 ### Batch mode
 
@@ -74,7 +84,7 @@ c2pa-test-tool --batch batch.json
 Add `--trust` to any operation to fetch and apply the official C2PA and Content Credentials trust lists:
 
 ```bash
-c2pa-test-tool --trust --profile profiles/... indicators.json
+c2pa-test-tool --trust --rubric rubrics/asset-rubric-conformance0.2-spec2.4.yml image.jpg
 ```
 
 ### Options
@@ -84,8 +94,8 @@ c2pa-test-tool --trust --profile profiles/... indicators.json
 | `-t / --create-test PATTERN` | Path or glob to test-case YAML file(s) |
 | `--validate` | Validate input assets *(scaffold; grammar TBD)* |
 | `--grammar FILE` | YAML grammar for validation (use with `--validate`) |
-| `--profile FILE` | YAML asset profile for profile evaluation |
-| `--report-format json\|yaml` | Profile report format (default: `json`) |
+| `--rubric FILE` | YAML rubric for evaluation; accepts crJSON or a signed asset |
+| `--report-format json\|yaml` | Rubric report format (default: `yaml`) |
 | `-o / --output PATH` | Output file or directory |
 | `--trust` | Enable C2PA trust list validation |
 | `-b / --batch FILE` | Run commands from a batch JSON file |
