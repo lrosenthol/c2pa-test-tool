@@ -46,12 +46,12 @@ expressions:
     @.assertions.'c2pa.actions.v2' != null && length(@.'claim.v2'.created_assertions[?contains(url, "c2pa.actions.v2")]) > 0
   _manifest_signalActions: '@.assertions.''c2pa.actions.v2''.actions'
   _manifest_createdWithDst: |-
-    length(_manifest_signalActions(@)[? action == "c2pa.created" && digitalSourceType == $arg1]) > 0
+    length(_manifest_signalActions(@)[? action == "c2pa.created" && digitalSourceType == $args[0]]) > 0
   _hasActionsV2: _manifest_hasActionsV2(@)
   _signalActions: _manifest_signalActions(@)
   _actionsV2Assertion: _manifest_actionsV2Assertion(@)
   _claimV2: _manifest_claimV2(@)
-  _createdWithDst: _manifest_createdWithDst(@, $arg1)
+  _createdWithDst: _manifest_createdWithDst(@, $args[0])
 
 ---
 

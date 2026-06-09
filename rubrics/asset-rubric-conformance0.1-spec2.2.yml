@@ -165,7 +165,7 @@ expressions:
   _actionsV2: _manifest_actionsV2(_activeManifest())
   _createdAssertions: _manifest_createdAssertions(_activeManifest())
   _ingredientAssertions: _manifest_ingredientAssertions(_activeManifest())
-  _startsWithAny: length(@[? startsWith($arg1, @)]) > 0
+  _startsWithAny: length(@[? startsWith($args[0], @)]) > 0
 
 ---
 
