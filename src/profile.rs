@@ -90,7 +90,7 @@ pub fn run_rubric_evaluation(
 
     let report_ext = match format {
         ReportFormat::Json => "json",
-        ReportFormat::Yaml => "yaml",
+        ReportFormat::Yaml => "yml",
     };
     let report_filename = format!("{}-report.{}", stem, report_ext);
     let report_path = input_path

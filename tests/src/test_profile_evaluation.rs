@@ -92,7 +92,7 @@ fn test_cli_rubric_default_output_is_yaml() -> Result<()> {
         String::from_utf8_lossy(&result.stderr)
     );
 
-    let report_path = out_dir.join("sig_es256-report.yaml");
+    let report_path = out_dir.join("sig_es256-report.yml");
     assert!(report_path.exists(), "default report should be YAML at {report_path:?}");
 
     // Must be valid YAML with a statements field
@@ -175,8 +175,8 @@ fn test_cli_rubric_multiple_inputs_produce_separate_reports() -> Result<()> {
         String::from_utf8_lossy(&result.stderr)
     );
 
-    let report1 = out_dir.join("asset_a-report.yaml");
-    let report2 = out_dir.join("asset_b-report.yaml");
+    let report1 = out_dir.join("asset_a-report.yml");
+    let report2 = out_dir.join("asset_b-report.yml");
     assert!(report1.exists(), "report for asset_a should be written: {report1:?}");
     assert!(report2.exists(), "report for asset_b should be written: {report2:?}");
 
@@ -339,7 +339,7 @@ fn test_cli_profile_alias_still_works() -> Result<()> {
         String::from_utf8_lossy(&result.stderr)
     );
 
-    let report_path = out_dir.join("sig_es256-report.yaml");
+    let report_path = out_dir.join("sig_es256-report.yml");
     assert!(report_path.exists(), "report should be written when using --profile alias");
 
     println!("✓ CLI --profile alias: accepted, report written");
