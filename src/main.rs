@@ -17,6 +17,7 @@ mod test_case;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use crtool::validation::run_validation;
 use crtool::SUPPORTED_ASSET_EXTENSIONS;
 use glob::glob;
 use profile::{run_rubric_evaluation, ReportFormat};
@@ -75,14 +76,11 @@ pub struct Cli {
     #[arg(short = 't', long = "create-test", value_name = "PATTERN")]
     create_test: Option<String>,
 
-    /// Validate input asset(s) against a YAML asset grammar
-    /// (schema TBD; currently scaffolded — always reports success)
-    #[arg(long, default_value = "false")]
-    validate: bool,
-
-    /// Path to the YAML asset grammar for validation (required with --validate)
-    #[arg(long, value_name = "FILE")]
-    grammar: Option<PathBuf>,
+    /// Path to a validation test-case YAML file (validation_test.schema.json).
+    /// Resolves the asset path embedded in the YAML and evaluates expected vs actual
+    /// C2PA validation status codes, reporting PASS or FAIL.
+    #[arg(short = 'v', long = "validate", value_name = "FILE")]
+    validate: Option<PathBuf>,
 
     /// Path(s) to input media asset(s). Supported: avi, avif, c2pa, dng, gif, heic, heif,
     /// jpg/jpeg, m4a, mov, mp3, mp4, pdf, png, svg, tiff, wav, webp.
@@ -234,6 +232,23 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
         return Ok(());
     }
 
+    // ── Validate mode ─────────────────────────────────────────────────────────
+    if let Some(yaml_path) = &cli.validate {
+        logger.info(&format!("=== Validation Test Case: {} ===", yaml_path.display()));
+        match run_validation(yaml_path) {
+            Ok(report) => {
+                logger.info(&report.summary());
+                if !report.overall_pass {
+                    anyhow::bail!("Validation FAILED");
+                }
+            }
+            Err(e) => {
+                anyhow::bail!("Validation error: {:#}", e);
+            }
+        }
+        return Ok(());
+    }
+
     // All other modes require at least one input file
     if cli.input.is_empty() {
         anyhow::bail!(
@@ -259,32 +274,6 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
         "🚀 Processing {} input file(s)",
         input_files.len()
     ));
-
-    // ── Validate mode (scaffold) ──────────────────────────────────────────────
-    if cli.validate {
-        logger.info("=== Asset Validation ===");
-        logger.info("  (Note: YAML grammar-based validation is not yet implemented)");
-
-        if let Some(grammar_path) = &cli.grammar {
-            logger.info(&format!("  Grammar: {}", grammar_path.display()));
-        }
-
-        for input_file in &input_files {
-            let ext_ok = crtool::is_supported_asset_path(input_file);
-            logger.info(&format!(
-                "  📄 {} — {}",
-                input_file.display(),
-                if ext_ok {
-                    "supported format ✅"
-                } else {
-                    "unsupported format ⚠️"
-                }
-            ));
-        }
-
-        logger.info("\n📊 Validation: scaffold only — all files reported as valid");
-        return Ok(());
-    }
 
     // ── Rubric evaluation mode ────────────────────────────────────────────────
     if cli.rubric.is_some() {
@@ -358,7 +347,7 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
 
     anyhow::bail!(
         "No operation specified. Use --create-test FILE to create a test asset, \
-        --validate to validate assets, --rubric FILE to evaluate a rubric, or \
+        --validate FILE to run a validation test case, --rubric FILE to evaluate a rubric, or \
         --batch FILE to run a batch of commands."
     );
 }
