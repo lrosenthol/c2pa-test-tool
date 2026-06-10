@@ -14,7 +14,6 @@ mod batch;
 mod processing;
 mod profile;
 mod test_case;
-mod validation;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -275,7 +274,11 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
             logger.info(&format!(
                 "  📄 {} — {}",
                 input_file.display(),
-                if ext_ok { "supported format ✅" } else { "unsupported format ⚠️" }
+                if ext_ok {
+                    "supported format ✅"
+                } else {
+                    "unsupported format ⚠️"
+                }
             ));
         }
 
@@ -290,14 +293,21 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
         let unsupported_for_rubric: Vec<_> = input_files
             .iter()
             .filter(|p| {
-                let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                let ext = p
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
                 ext != "json" && !crtool::is_supported_asset_path(p)
             })
             .collect();
         if !unsupported_for_rubric.is_empty() {
             anyhow::bail!(
                 "Unsupported file format(s) for rubric evaluation: {:?}",
-                unsupported_for_rubric.iter().map(|p| p.as_path()).collect::<Vec<_>>()
+                unsupported_for_rubric
+                    .iter()
+                    .map(|p| p.as_path())
+                    .collect::<Vec<_>>()
             );
         }
 

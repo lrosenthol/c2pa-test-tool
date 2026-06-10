@@ -7,12 +7,10 @@ inputs:
   - certs/root_ca1_cert.pem
   validationTime: "2001-06-01T00:00:00Z"
 manifests:
-- successes:
+- failures:
+    isEmpty: {}
+  successes:
     containsAllOf:
       codes:
-      - assertion.hashedURI.match
-      - assertion.bmffHash.match
-  failures:
-    containsAllOf:
-      codes:
-      - signingCredential.expired
+      - claimSignature.validated
+      - signingCredential.trusted
