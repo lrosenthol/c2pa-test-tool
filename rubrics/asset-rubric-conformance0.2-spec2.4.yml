@@ -181,14 +181,15 @@ variables:
   - slant
   - optical-size
 expressions:
-  _manifest_validationResults: '(@.validationResults || { failure: [{code: "MISSING_VALIDATION_RESULTS"}] })'
-  _manifest_assertionKeys: keys(@.assertions || `{}`)
-  _manifest_assertionValues: values(@.assertions || `{}`)
-  _manifest_actionsV2: '@.assertions.''c2pa.actions.v2''.actions || `[]`'
-  _manifest_actionsV2Assertion: '@.assertions.''c2pa.actions.v2'''
-  _manifest_claimV2: '@.''claim.v2'''
-  _manifest_createdAssertions: '@.''claim.v2''.created_assertions || `[]`'
-  _manifest_ingredientAssertions: values(@.assertions || `{}`)[? relationship != null]
+  _manifest_validationResults: |-
+    (@[0].validationResults || { failure: [{code: "MISSING_VALIDATION_RESULTS"}] })
+  _manifest_assertionKeys: keys(@[0].assertions || `{}`)
+  _manifest_assertionValues: values(@[0].assertions || `{}`)
+  _manifest_actionsV2: '@[0].assertions.''c2pa.actions.v2''.actions || `[]`'
+  _manifest_actionsV2Assertion: '@[0].assertions.''c2pa.actions.v2'''
+  _manifest_claimV2: '@[0].''claim.v2'''
+  _manifest_createdAssertions: '@[0].''claim.v2''.created_assertions || `[]`'
+  _manifest_ingredientAssertions: values(@[0].assertions || `{}`)[? relationship != null]
   _activeManifest: manifests[0]
   _validationResults: _manifest_validationResults(_activeManifest())
   _assertionKeys: _manifest_assertionKeys(_activeManifest())
@@ -198,7 +199,7 @@ expressions:
   _claimV2: _manifest_claimV2(_activeManifest())
   _createdAssertions: _manifest_createdAssertions(_activeManifest())
   _ingredientAssertions: _manifest_ingredientAssertions(_activeManifest())
-  _startsWithAny: length(@[? startsWith($args[0], @)]) > 0
+  _startsWithAny: 'contains(startsWith(@[1], @[0]), `true`)'
 
 ---
 
