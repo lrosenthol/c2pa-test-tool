@@ -240,7 +240,28 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
         ));
         match run_validation(yaml_path) {
             Ok(report) => {
-                logger.info(&report.summary());
+                let summary = report.summary();
+                logger.info(&summary);
+
+                if let Some(output_path) = &cli.output {
+                    let report_path = if output_path.is_dir() {
+                        let stem = yaml_path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("validation");
+                        output_path.join(format!("{}-report.txt", stem))
+                    } else {
+                        output_path.clone()
+                    };
+                    std::fs::write(&report_path, &summary).with_context(|| {
+                        format!("Failed to write report to {}", report_path.display())
+                    })?;
+                    logger.info(&format!(
+                        "  📄 Report written to: {}",
+                        report_path.display()
+                    ));
+                }
+
                 if !report.overall_pass {
                     anyhow::bail!("Validation FAILED");
                 }
