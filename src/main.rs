@@ -14,6 +14,7 @@ mod batch;
 mod processing;
 mod profile;
 mod test_case;
+mod validation;
 
 use anyhow::{Context, Result};
 use clap::Parser;
