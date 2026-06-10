@@ -216,13 +216,8 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
         );
     }
 
-    let trust_toml = format!(
-        "[trust]\ntrust_anchors = '''{pem}'''\n\n[verify]\nverify_trust = true\n",
-        pem = trust_pem.trim().replace('\'', "''")
-    );
-    let settings = c2pa::Settings::default()
-        .with_toml(&trust_toml)
-        .map_err(|e| anyhow::anyhow!("Failed to configure trust anchors: {}", e))?;
+    let settings = crate::build_trust_settings(&trust_pem, None, None)
+        .context("Failed to configure trust anchors")?;
 
     let context = c2pa::Context::new()
         .with_settings(settings)
