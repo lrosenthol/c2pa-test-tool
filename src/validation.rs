@@ -66,5 +66,6 @@ pub struct StatusCodesExpectations {
 
 #[derive(Debug, Deserialize)]
 pub struct StatusCodeSet {
+    #[serde(default)]
     pub codes: Vec<String>,
 }
