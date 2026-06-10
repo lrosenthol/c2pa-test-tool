@@ -69,3 +69,69 @@ pub struct StatusCodeSet {
     #[serde(default)]
     pub codes: Vec<String>,
 }
+
+impl StatusCodesExpectations {
+    /// Returns (passed, Vec<failure_reason>).
+    pub fn check(&self, actual: &[String]) -> (bool, Vec<String>) {
+        let mut failures = Vec::new();
+        let actual_set: std::collections::HashSet<&str> =
+            actual.iter().map(String::as_str).collect();
+
+        if self.is_empty.is_some() && !actual.is_empty() {
+            failures.push(format!("expected empty, got: {:?}", actual));
+        }
+
+        if self.is_not_empty.is_some() && actual.is_empty() {
+            failures.push("expected non-empty, got empty set".to_string());
+        }
+
+        if let Some(set) = &self.contains_exactly {
+            let expected_set: std::collections::HashSet<&str> =
+                set.codes.iter().map(String::as_str).collect();
+            if actual_set != expected_set {
+                failures.push(format!(
+                    "expected exactly {:?}, got {:?}",
+                    set.codes, actual
+                ));
+            }
+        }
+
+        if let Some(set) = &self.contains_all_of {
+            let missing: Vec<&str> = set
+                .codes
+                .iter()
+                .map(String::as_str)
+                .filter(|c| !actual_set.contains(c))
+                .collect();
+            if !missing.is_empty() {
+                failures.push(format!("missing required codes: {:?}", missing));
+            }
+        }
+
+        if let Some(set) = &self.contains_none_of {
+            let found: Vec<&str> = set
+                .codes
+                .iter()
+                .map(String::as_str)
+                .filter(|c| actual_set.contains(c))
+                .collect();
+            if !found.is_empty() {
+                failures.push(format!("unexpected codes present: {:?}", found));
+            }
+        }
+
+        if let Some(any_of_sets) = &self.contains_any_of {
+            for (i, set) in any_of_sets.iter().enumerate() {
+                let has_any = set.codes.iter().any(|c| actual_set.contains(c.as_str()));
+                if !has_any {
+                    failures.push(format!(
+                        "containsAnyOf[{}]: none of {:?} found in actual",
+                        i, set.codes
+                    ));
+                }
+            }
+        }
+
+        (failures.is_empty(), failures)
+    }
+}
