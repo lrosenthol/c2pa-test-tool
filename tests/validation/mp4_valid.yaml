@@ -1,0 +1,18 @@
+description: MP4 with valid C2PA manifest
+inputs:
+  assetPath: ./mp4_valid.mp4
+  claimSignerTrustListPaths:
+  - certs/root_ca1_cert.pem
+  tsaTrustListPaths:
+  - certs/root_ca1_cert.pem
+  validationTime: "2001-06-01T00:00:00Z"
+manifests:
+- successes:
+    containsAllOf:
+      codes:
+      - assertion.hashedURI.match
+      - assertion.bmffHash.match
+  failures:
+    containsAllOf:
+      codes:
+      - signingCredential.expired

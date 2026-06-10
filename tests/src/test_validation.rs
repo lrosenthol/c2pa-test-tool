@@ -60,3 +60,30 @@ fn test_contains_all_of_fails_when_one_missing() {
         .check(&actual);
     assert!(!pass);
 }
+
+use std::path::Path;
+
+#[test]
+fn test_run_validation_png_valid() {
+    let yaml_path = Path::new("tests/validation/png_valid.yaml");
+    let result = crtool::validation::run_validation(yaml_path);
+    assert!(result.is_ok(), "run_validation failed: {:?}", result);
+    let report = result.unwrap();
+    assert!(report.overall_pass, "Expected PASS but got FAIL:\n{}", report.summary());
+}
+
+#[test]
+fn test_run_validation_mp3_valid() {
+    let yaml_path = Path::new("tests/validation/mp3_valid.yaml");
+    let result = crtool::validation::run_validation(yaml_path);
+    assert!(result.is_ok(), "run_validation failed: {:?}", result);
+    assert!(result.unwrap().overall_pass);
+}
+
+#[test]
+fn test_run_validation_mp4_valid() {
+    let yaml_path = Path::new("tests/validation/mp4_valid.yaml");
+    let result = crtool::validation::run_validation(yaml_path);
+    assert!(result.is_ok(), "run_validation failed: {:?}", result);
+    assert!(result.unwrap().overall_pass);
+}
