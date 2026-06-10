@@ -82,7 +82,8 @@ fn test_cli_rubric_default_output_is_yaml() -> Result<()> {
     std::fs::copy(&asset, &asset_copy)?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg(&rubric)
+        .arg("--rubric")
+        .arg(&rubric)
         .arg(&asset_copy)
         .output()?;
 
@@ -93,12 +94,18 @@ fn test_cli_rubric_default_output_is_yaml() -> Result<()> {
     );
 
     let report_path = out_dir.join("sig_es256-report.yml");
-    assert!(report_path.exists(), "default report should be YAML at {report_path:?}");
+    assert!(
+        report_path.exists(),
+        "default report should be YAML at {report_path:?}"
+    );
 
     // Must be valid YAML with a statements field
     let content = std::fs::read_to_string(&report_path)?;
     let parsed: serde_json::Value = serde_yaml::from_str(&content)?;
-    assert!(parsed.get("statements").is_some(), "report should have statements");
+    assert!(
+        parsed.get("statements").is_some(),
+        "report should have statements"
+    );
 
     // Confirm a .json report was NOT written
     assert!(
@@ -123,8 +130,10 @@ fn test_cli_rubric_explicit_json_output() -> Result<()> {
     std::fs::copy(&asset, &asset_copy)?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg(&rubric)
-        .arg("--report-format").arg("json")
+        .arg("--rubric")
+        .arg(&rubric)
+        .arg("--report-format")
+        .arg("json")
         .arg(&asset_copy)
         .output()?;
 
@@ -135,11 +144,17 @@ fn test_cli_rubric_explicit_json_output() -> Result<()> {
     );
 
     let report_path = out_dir.join("sig_es256-report.json");
-    assert!(report_path.exists(), "JSON report should be at {report_path:?}");
+    assert!(
+        report_path.exists(),
+        "JSON report should be at {report_path:?}"
+    );
 
     let content = std::fs::read_to_string(&report_path)?;
     let parsed: serde_json::Value = serde_json::from_str(&content)?;
-    assert!(parsed.get("statements").is_some(), "JSON report should have statements");
+    assert!(
+        parsed.get("statements").is_some(),
+        "JSON report should have statements"
+    );
 
     println!("✓ CLI --rubric --report-format json: writes JSON report");
     Ok(())
@@ -161,7 +176,8 @@ fn test_cli_rubric_multiple_inputs_produce_separate_reports() -> Result<()> {
     std::fs::copy(&asset, &copy2)?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg(&rubric)
+        .arg("--rubric")
+        .arg(&rubric)
         .arg(&copy1)
         .arg(&copy2)
         .output()?;
@@ -177,8 +193,14 @@ fn test_cli_rubric_multiple_inputs_produce_separate_reports() -> Result<()> {
 
     let report1 = out_dir.join("asset_a-report.yml");
     let report2 = out_dir.join("asset_b-report.yml");
-    assert!(report1.exists(), "report for asset_a should be written: {report1:?}");
-    assert!(report2.exists(), "report for asset_b should be written: {report2:?}");
+    assert!(
+        report1.exists(),
+        "report for asset_a should be written: {report1:?}"
+    );
+    assert!(
+        report2.exists(),
+        "report for asset_b should be written: {report2:?}"
+    );
 
     println!("✓ CLI --rubric multi-input: separate report written for each file");
     Ok(())
@@ -196,7 +218,8 @@ fn test_cli_rubric_unsupported_file_type_fails() -> Result<()> {
     std::fs::write(&bad_file, "this is not a supported asset or crJSON file")?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg(&rubric)
+        .arg("--rubric")
+        .arg(&rubric)
         .arg(&bad_file)
         .output()?;
 
@@ -226,13 +249,13 @@ fn test_cli_rubric_partial_failure_exits_nonzero() -> Result<()> {
 
     let bad = out_dir.join("bad.jpg");
     std::fs::copy(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/assets/raw/Dog.jpg"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assets/raw/Dog.jpg"),
         &bad,
     )?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg(&rubric)
+        .arg("--rubric")
+        .arg(&rubric)
         .arg(&good)
         .arg(&bad)
         .output()?;
@@ -253,11 +276,14 @@ fn test_cli_rubric_partial_failure_exits_nonzero() -> Result<()> {
 #[test]
 fn test_cli_rubric_unsigned_asset_fails_cleanly() -> Result<()> {
     let binary = common::cli_binary_path();
-    let raw_asset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/assets/raw/Dog.jpg");
+    let raw_asset =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assets/raw/Dog.jpg");
     let rubric = rubrics_dir().join("asset-rubric-conformance0.2-spec2.4.yml");
 
-    assert!(raw_asset.exists(), "raw asset fixture should exist at {raw_asset:?}");
+    assert!(
+        raw_asset.exists(),
+        "raw asset fixture should exist at {raw_asset:?}"
+    );
 
     let out_dir = common::output_dir().join("rubric_no_manifest");
     std::fs::create_dir_all(&out_dir)?;
@@ -265,7 +291,8 @@ fn test_cli_rubric_unsigned_asset_fails_cleanly() -> Result<()> {
     std::fs::copy(&raw_asset, &asset_copy)?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg(&rubric)
+        .arg("--rubric")
+        .arg(&rubric)
         .arg(&asset_copy)
         .output()?;
 
@@ -300,7 +327,8 @@ fn test_cli_rubric_missing_file_fails() -> Result<()> {
     std::fs::copy(&asset, &asset_copy)?;
 
     let result = Command::new(&binary)
-        .arg("--rubric").arg("/nonexistent/rubric.yml")
+        .arg("--rubric")
+        .arg("/nonexistent/rubric.yml")
         .arg(&asset_copy)
         .output()?;
 
@@ -340,7 +368,10 @@ fn test_cli_profile_alias_still_works() -> Result<()> {
     );
 
     let report_path = out_dir.join("sig_es256-report.yml");
-    assert!(report_path.exists(), "report should be written when using --profile alias");
+    assert!(
+        report_path.exists(),
+        "report should be written when using --profile alias"
+    );
 
     println!("✓ CLI --profile alias: accepted, report written");
     Ok(())

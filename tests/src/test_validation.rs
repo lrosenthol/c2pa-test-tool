@@ -70,7 +70,11 @@ fn test_run_validation_png_valid() {
     let result = crtool::validation::run_validation(yaml_path);
     assert!(result.is_ok(), "run_validation failed: {:?}", result);
     let report = result.unwrap();
-    assert!(report.overall_pass, "Expected PASS but got FAIL:\n{}", report.summary());
+    assert!(
+        report.overall_pass,
+        "Expected PASS but got FAIL:\n{}",
+        report.summary()
+    );
 }
 
 #[test]

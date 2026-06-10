@@ -161,7 +161,7 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
             .output
             .context("--output is required when using --create-test mode")?;
 
-        let test_case_files = expand_input_patterns(&[test_case_pattern.clone()])
+        let test_case_files = expand_input_patterns(std::slice::from_ref(test_case_pattern))
             .context("Failed to expand --create-test pattern")?;
 
         // Fast path: single test case, no input override
@@ -234,7 +234,10 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
 
     // ── Validate mode ─────────────────────────────────────────────────────────
     if let Some(yaml_path) = &cli.validate {
-        logger.info(&format!("=== Validation Test Case: {} ===", yaml_path.display()));
+        logger.info(&format!(
+            "=== Validation Test Case: {} ===",
+            yaml_path.display()
+        ));
         match run_validation(yaml_path) {
             Ok(report) => {
                 logger.info(&report.summary());
@@ -276,9 +279,7 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
     ));
 
     // ── Rubric evaluation mode ────────────────────────────────────────────────
-    if cli.rubric.is_some() {
-        let rubric_path = cli.rubric.as_ref().unwrap();
-
+    if let Some(rubric_path) = &cli.rubric {
         let unsupported_for_rubric: Vec<_> = input_files
             .iter()
             .filter(|p| {

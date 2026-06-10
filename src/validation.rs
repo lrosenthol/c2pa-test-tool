@@ -14,7 +14,6 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
 
-
 #[derive(Debug, Deserialize)]
 pub struct ValidationTestCase {
     pub description: String,
@@ -159,7 +158,11 @@ pub struct ValidationReport {
 
 impl ValidationReport {
     pub fn summary(&self) -> String {
-        let banner = if self.overall_pass { "✅ PASS" } else { "❌ FAIL" };
+        let banner = if self.overall_pass {
+            "✅ PASS"
+        } else {
+            "❌ FAIL"
+        };
         let mut lines = vec![format!("{} — {}", banner, self.description)];
         if self.validation_time_ignored {
             lines.push(
@@ -175,10 +178,16 @@ impl ValidationReport {
                     lines.push(format!("    ✗ {}", r));
                 }
                 if !m.actual_successes.is_empty() {
-                    lines.push(format!("    actual successes:      {:?}", m.actual_successes));
+                    lines.push(format!(
+                        "    actual successes:      {:?}",
+                        m.actual_successes
+                    ));
                 }
                 if !m.actual_failures.is_empty() {
-                    lines.push(format!("    actual failures:       {:?}", m.actual_failures));
+                    lines.push(format!(
+                        "    actual failures:       {:?}",
+                        m.actual_failures
+                    ));
                 }
                 if !m.actual_informationals.is_empty() {
                     lines.push(format!(
