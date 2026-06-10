@@ -159,20 +159,33 @@ pub struct ValidationReport {
 
 impl ValidationReport {
     pub fn summary(&self) -> String {
-        let mut lines = Vec::new();
-        lines.push(format!("Description: {}", self.description));
-        lines.push(format!(
-            "Overall: {}",
-            if self.overall_pass { "PASS" } else { "FAIL" }
-        ));
+        let banner = if self.overall_pass { "✅ PASS" } else { "❌ FAIL" };
+        let mut lines = vec![format!("{} — {}", banner, self.description)];
+        if self.validation_time_ignored {
+            lines.push(
+                "  ⚠ validationTime was specified but ignored (not supported by c2pa-rs)"
+                    .to_string(),
+            );
+        }
         for m in &self.manifests {
-            lines.push(format!(
-                "  Manifest[{}]: {}",
-                m.index,
-                if m.pass { "PASS" } else { "FAIL" }
-            ));
-            for r in &m.reasons {
-                lines.push(format!("    - {}", r));
+            let label = if m.pass { "✅ PASS" } else { "❌ FAIL" };
+            lines.push(format!("  Manifest[{}]: {}", m.index, label));
+            if !m.pass {
+                for r in &m.reasons {
+                    lines.push(format!("    ✗ {}", r));
+                }
+                if !m.actual_successes.is_empty() {
+                    lines.push(format!("    actual successes:      {:?}", m.actual_successes));
+                }
+                if !m.actual_failures.is_empty() {
+                    lines.push(format!("    actual failures:       {:?}", m.actual_failures));
+                }
+                if !m.actual_informationals.is_empty() {
+                    lines.push(format!(
+                        "    actual informationals: {:?}",
+                        m.actual_informationals
+                    ));
+                }
             }
         }
         lines.join("\n")
@@ -189,6 +202,13 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
 
     let test_case: ValidationTestCase = serde_yaml::from_str(&yaml_str)
         .with_context(|| format!("Failed to parse validation YAML: {}", yaml_path.display()))?;
+
+    if test_case.inputs.validation_time.is_some() {
+        eprintln!(
+            "Warning: 'validationTime' is specified in the test case but is not yet \
+             supported by c2pa-rs. Validation will use the current system clock."
+        );
+    }
 
     let asset_path = yaml_dir.join(&test_case.inputs.asset_path);
 
