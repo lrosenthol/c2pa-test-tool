@@ -13,7 +13,10 @@ governing permissions and limitations under the License.
 use crtool::validation::{EmptyObject, StatusCodeSet, StatusCodesExpectations};
 
 fn exp_is_empty() -> StatusCodesExpectations {
-    StatusCodesExpectations { is_empty: Some(EmptyObject {}), ..Default::default() }
+    StatusCodesExpectations {
+        is_empty: Some(EmptyObject {}),
+        ..Default::default()
+    }
 }
 
 fn exp_contains_all_of(codes: &[&str]) -> StatusCodesExpectations {
