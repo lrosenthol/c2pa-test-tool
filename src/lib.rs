@@ -20,6 +20,8 @@ use std::path::Path;
 /// Re-export so callers (e.g. tests) can use explicit Settings without depending on c2pa.
 pub use c2pa::Settings;
 
+pub mod validation;
+
 /// File extensions for asset types supported by c2pa-rs for reading/embedding C2PA manifests.
 /// Matches the formats listed in c2pa-rs [supported-formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md).
 pub const SUPPORTED_ASSET_EXTENSIONS: &[&str] = &[
