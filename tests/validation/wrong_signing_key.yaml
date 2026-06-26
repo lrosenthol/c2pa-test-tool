@@ -6,7 +6,15 @@ inputs:
   tsaTrustListPaths:
   - certs/root_ca1_cert.pem
   validationTime: "2001-06-01T00:00:00Z"
+globals:
+  $expected_failure_codes:
+    - claimSignature.mismatch
+  $excluded_success_codes:
+    - claimSignature.validated
+expressions:
+  _containsAllOf: "length(@[0][?contains($expected_failure_codes, code)]) = length($expected_failure_codes)"
+  _containsNoneOf: "length(@[0][?contains($excluded_success_codes, code)]) = 0"
 manifests:
 - formula: >-
-    length(failure[?code == "claimSignature.mismatch"]) > 0 &&
-    length(success[?code == "claimSignature.validated"]) = 0
+    _containsAllOf(failure) &&
+    _containsNoneOf(success)

@@ -7,12 +7,24 @@ inputs:
   tsaTrustListPaths:
   - certs/root_ca1_cert.pem
   validationTime: "2001-06-01T00:00:00Z"
+globals:
+  $active_success_codes:
+    - signingCredential.trusted
+    - claimSignature.insideValidity
+    - claimSignature.validated
+  $ingredient_expected_failure_codes:
+    - assertion.dataHash.mismatch
+  $ingredient_excluded_success_codes:
+    - assertion.dataHash.match
+expressions:
+  _isEmpty: "length(@[0]) = 0"
+  _containsAllOf: "length(@[0][?contains($active_success_codes, code)]) = length($active_success_codes)"
+  _containsAllOfFailures: "length(@[0][?contains($ingredient_expected_failure_codes, code)]) = length($ingredient_expected_failure_codes)"
+  _containsNoneOf: "length(@[0][?contains($ingredient_excluded_success_codes, code)]) = 0"
 manifests:
 - formula: >-
-    length(failure) = 0 &&
-    length(success[?code == "signingCredential.trusted"]) > 0 &&
-    length(success[?code == "claimSignature.insideValidity"]) > 0 &&
-    length(success[?code == "claimSignature.validated"]) > 0
+    _isEmpty(failure) &&
+    _containsAllOf(success)
 - formula: >-
-    length(failure[?code == "assertion.dataHash.mismatch"]) > 0 &&
-    length(success[?code == "assertion.dataHash.match"]) = 0
+    _containsAllOfFailures(failure) &&
+    _containsNoneOf(success)
