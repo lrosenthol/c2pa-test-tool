@@ -99,13 +99,15 @@ fn test_rubric_eval_on_testfiles_creation_outputs() -> Result<()> {
         let result = Command::new(&binary)
             .arg("--rubric")
             .arg(&rubric)
-            .arg(&asset_path)
+            .arg(asset_path)
             .output();
 
         let output = match result {
             Ok(o) => o,
             Err(e) => {
-                failures.push(format!("  FAIL {asset_filename}: could not launch CLI: {e}"));
+                failures.push(format!(
+                    "  FAIL {asset_filename}: could not launch CLI: {e}"
+                ));
                 continue;
             }
         };

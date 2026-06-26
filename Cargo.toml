@@ -71,6 +71,10 @@ path = "tests/src/test_creation.rs"
 name = "test_creation_rubric_eval"
 path = "tests/src/test_creation_rubric_eval.rs"
 
+[[test]]
+name = "test_validation"
+path = "tests/src/test_validation.rs"
+
 [profile.release]
 opt-level = 3
 lto = true
