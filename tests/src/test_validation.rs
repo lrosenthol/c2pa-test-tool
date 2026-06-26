@@ -10,55 +10,64 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-use crtool::validation::{EmptyObject, StatusCodeSet, StatusCodesExpectations};
+use json_formula_rs::JsonFormula;
+use serde_json::json;
 
-fn exp_is_empty() -> StatusCodesExpectations {
-    StatusCodesExpectations {
-        is_empty: Some(EmptyObject {}),
-        ..Default::default()
+fn eval_formula(formula: &str, data: serde_json::Value) -> bool {
+    eval_formula_with_globals(formula, data, None)
+}
+
+fn eval_formula_with_globals(
+    formula: &str,
+    data: serde_json::Value,
+    globals: Option<serde_json::Value>,
+) -> bool {
+    let mut jf = JsonFormula::new();
+    match jf.search(formula, &data, globals.as_ref(), None) {
+        Ok(v) => crtool::validation::is_truthy(&v),
+        Err(_) => false,
     }
 }
 
-fn exp_contains_all_of(codes: &[&str]) -> StatusCodesExpectations {
-    StatusCodesExpectations {
-        contains_all_of: Some(StatusCodeSet {
-            codes: codes.iter().map(|s| s.to_string()).collect(),
-        }),
-        ..Default::default()
-    }
+#[test]
+fn test_formula_empty_failure_set_passes() {
+    let data = json!({"success": [], "failure": [], "informational": []});
+    assert!(eval_formula("length(failure) = 0", data));
 }
 
 #[test]
-fn test_is_empty_passes_on_empty_set() {
-    let actual = vec![];
-    let (pass, _) = exp_is_empty().check(&actual);
-    assert!(pass);
+fn test_formula_non_empty_failure_set_fails() {
+    let data = json!({"success": [], "failure": [{"code": "claimSignature.mismatch", "url": ""}], "informational": []});
+    assert!(!eval_formula("length(failure) = 0", data));
 }
 
 #[test]
-fn test_is_empty_fails_on_non_empty_set() {
-    let actual = vec!["signingCredential.trusted".to_string()];
-    let (pass, _) = exp_is_empty().check(&actual);
-    assert!(!pass);
+fn test_formula_code_present_in_success() {
+    let data = json!({"success": [{"code": "claimSignature.validated", "url": ""}], "failure": [], "informational": []});
+    assert!(eval_formula(
+        r#"length(success[?code == "claimSignature.validated"]) > 0"#,
+        data
+    ));
 }
 
 #[test]
-fn test_contains_all_of_passes_when_all_present() {
-    let actual = vec![
-        "claimSignature.validated".to_string(),
-        "signingCredential.trusted".to_string(),
-    ];
-    let (pass, _) = exp_contains_all_of(&["claimSignature.validated", "signingCredential.trusted"])
-        .check(&actual);
-    assert!(pass);
+fn test_formula_code_absent_from_success() {
+    let data = json!({"success": [], "failure": [], "informational": []});
+    assert!(!eval_formula(
+        r#"length(success[?code == "claimSignature.validated"]) > 0"#,
+        data
+    ));
 }
 
 #[test]
-fn test_contains_all_of_fails_when_one_missing() {
-    let actual = vec!["claimSignature.validated".to_string()];
-    let (pass, _) = exp_contains_all_of(&["claimSignature.validated", "signingCredential.trusted"])
-        .check(&actual);
-    assert!(!pass);
+fn test_formula_globals_accessible_in_formula() {
+    let data = json!({"success": [{"code": "claimSignature.validated", "url": ""}], "failure": [], "informational": []});
+    let globals = json!({"$target_code": "claimSignature.validated"});
+    assert!(eval_formula_with_globals(
+        r#"length(success[?code == $target_code]) > 0"#,
+        data,
+        Some(globals),
+    ));
 }
 
 #[test]

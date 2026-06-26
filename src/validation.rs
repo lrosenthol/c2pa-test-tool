@@ -12,6 +12,7 @@ governing permissions and limitations under the License.
 
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
+use json_formula_rs::{JsonFormula, JsonFormulaError};
 use serde::Deserialize;
 use std::path::Path;
 
@@ -46,97 +47,30 @@ pub struct ManifestExpectation {
     pub formula: String,
 }
 
-/// Unit struct for the schema's empty-object sentinel `{}`.
-/// serde_yaml parses `isEmpty: {}` into this cleanly.
-#[derive(Debug, Deserialize, Default)]
-pub struct EmptyObject {}
 
-#[derive(Debug, Deserialize, Default)]
-pub struct StatusCodesExpectations {
-    #[serde(rename = "isEmpty")]
-    pub is_empty: Option<EmptyObject>,
-    #[serde(rename = "isNotEmpty")]
-    pub is_not_empty: Option<EmptyObject>,
-    #[serde(rename = "containsExactly")]
-    pub contains_exactly: Option<StatusCodeSet>,
-    #[serde(rename = "containsAllOf")]
-    pub contains_all_of: Option<StatusCodeSet>,
-    #[serde(rename = "containsNoneOf")]
-    pub contains_none_of: Option<StatusCodeSet>,
-    #[serde(rename = "containsAnyOf")]
-    pub contains_any_of: Option<Vec<StatusCodeSet>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StatusCodeSet {
-    #[serde(default)]
-    pub codes: Vec<String>,
-}
-
-impl StatusCodesExpectations {
-    /// Returns (passed, Vec<failure_reason>).
-    pub fn check(&self, actual: &[String]) -> (bool, Vec<String>) {
-        let mut failures = Vec::new();
-        let actual_set: std::collections::HashSet<&str> =
-            actual.iter().map(String::as_str).collect();
-
-        if self.is_empty.is_some() && !actual.is_empty() {
-            failures.push(format!("expected empty, got: {:?}", actual));
-        }
-
-        if self.is_not_empty.is_some() && actual.is_empty() {
-            failures.push("expected non-empty, got empty set".to_string());
-        }
-
-        if let Some(set) = &self.contains_exactly {
-            let expected_set: std::collections::HashSet<&str> =
-                set.codes.iter().map(String::as_str).collect();
-            if actual_set != expected_set {
-                failures.push(format!(
-                    "expected exactly {:?}, got {:?}",
-                    set.codes, actual
-                ));
-            }
-        }
-
-        if let Some(set) = &self.contains_all_of {
-            let missing: Vec<&str> = set
-                .codes
-                .iter()
-                .map(String::as_str)
-                .filter(|c| !actual_set.contains(c))
-                .collect();
-            if !missing.is_empty() {
-                failures.push(format!("missing required codes: {:?}", missing));
-            }
-        }
-
-        if let Some(set) = &self.contains_none_of {
-            let found: Vec<&str> = set
-                .codes
-                .iter()
-                .map(String::as_str)
-                .filter(|c| actual_set.contains(c))
-                .collect();
-            if !found.is_empty() {
-                failures.push(format!("unexpected codes present: {:?}", found));
-            }
-        }
-
-        if let Some(any_of_sets) = &self.contains_any_of {
-            for (i, set) in any_of_sets.iter().enumerate() {
-                let has_any = set.codes.iter().any(|c| actual_set.contains(c.as_str()));
-                if !has_any {
-                    failures.push(format!(
-                        "containsAnyOf[{}]: none of {:?} found in actual",
-                        i, set.codes
-                    ));
-                }
-            }
-        }
-
-        (failures.is_empty(), failures)
+pub fn is_truthy(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Bool(b) => *b,
+        serde_json::Value::Null => false,
+        serde_json::Value::Number(n) => n.as_f64().map(|f| f != 0.0).unwrap_or(false),
+        serde_json::Value::String(s) => !s.is_empty(),
+        serde_json::Value::Array(a) => !a.is_empty(),
+        serde_json::Value::Object(o) => !o.is_empty(),
     }
+}
+
+fn build_globals(
+    globals: &serde_json::Value,
+    expressions: &IndexMap<String, String>,
+) -> serde_json::Value {
+    let mut merged = match globals.as_object() {
+        Some(m) => m.clone(),
+        None => serde_json::Map::new(),
+    };
+    for (name, expr) in expressions {
+        merged.insert(name.clone(), serde_json::Value::String(expr.clone()));
+    }
+    serde_json::Value::Object(merged)
 }
 
 #[derive(Debug)]
@@ -266,72 +200,101 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
 
     let validation_time_ignored = test_case.inputs.validation_time.is_some();
 
-    let expected_manifests = test_case.manifests.as_deref().unwrap_or(&[]);
+    let mut jf = JsonFormula::new();
+    let merged_globals = build_globals(&test_case.globals, &test_case.expressions);
+    let globals_arg = if merged_globals.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+        None
+    } else {
+        Some(merged_globals.clone())
+    };
 
-    // Empty manifests in test case = expect no C2PA manifests in asset
-    if expected_manifests.is_empty() {
-        let overall_pass = manifests_json.is_empty();
-        return Ok(ValidationReport {
-            description: test_case.description,
-            overall_pass,
-            manifests: if overall_pass {
-                vec![]
-            } else {
-                vec![ManifestResult {
-                    index: 0,
-                    pass: false,
-                    reasons: vec![format!(
-                        "expected no manifests but asset contains {}",
-                        manifests_json.len()
-                    )],
-                    actual_successes: vec![],
-                    actual_failures: vec![],
-                    actual_informationals: vec![],
-                }]
-            },
-            validation_time_ignored,
-        });
-    }
-
-    let mut manifest_results = Vec::new();
-    let mut overall_pass = true;
-
-    for (i, _expected) in expected_manifests.iter().enumerate() {
-        let manifest_json = manifests_json.get(i).with_context(|| {
-            format!(
-                "crJSON has {} manifest(s) but test case expects at least {}",
-                manifests_json.len(),
-                i + 1
-            )
-        })?;
-
-        let vr = &manifest_json["validationResults"];
-
-        let actual_successes = extract_codes(&vr["success"]);
-        let actual_failures = extract_codes(&vr["failure"]);
-        let actual_informationals = extract_codes(&vr["informational"]);
-
-        // Formula-based evaluation is implemented in Task 3; for now, pass through.
-        let pass = true;
-        if !pass {
-            overall_pass = false;
+    match (&test_case.formula, &test_case.manifests) {
+        (Some(_), Some(_)) => {
+            anyhow::bail!(
+                "test case '{}': 'formula' and 'manifests' are mutually exclusive",
+                test_case.description
+            );
         }
-        manifest_results.push(ManifestResult {
-            index: i,
-            pass,
-            reasons: vec![],
-            actual_successes,
-            actual_failures,
-            actual_informationals,
-        });
-    }
+        (None, None) => {
+            anyhow::bail!(
+                "test case '{}': one of 'formula' or 'manifests' must be present",
+                test_case.description
+            );
+        }
+        (Some(top_formula), None) => {
+            let result = jf.search(top_formula, &crjson_value, globals_arg.as_ref(), None);
+            let (pass, reason) = formula_result_to_pass(result, top_formula);
+            return Ok(ValidationReport {
+                description: test_case.description,
+                overall_pass: pass,
+                manifests: if pass {
+                    vec![]
+                } else {
+                    vec![ManifestResult {
+                        index: 0,
+                        pass: false,
+                        reasons: vec![reason],
+                        actual_successes: vec![],
+                        actual_failures: vec![],
+                        actual_informationals: vec![],
+                    }]
+                },
+                validation_time_ignored,
+            });
+        }
+        (None, Some(expected_manifests)) => {
+            let mut manifest_results = Vec::new();
+            let mut overall_pass = true;
 
-    Ok(ValidationReport {
-        description: test_case.description,
-        overall_pass,
-        manifests: manifest_results,
-        validation_time_ignored,
-    })
+            for (i, expected) in expected_manifests.iter().enumerate() {
+                let manifest_json = manifests_json.get(i).with_context(|| {
+                    format!(
+                        "crJSON has {} manifest(s) but test case expects at least {}",
+                        manifests_json.len(),
+                        i + 1
+                    )
+                })?;
+
+                let vr = &manifest_json["validationResults"];
+                let actual_successes = extract_codes(&vr["success"]);
+                let actual_failures = extract_codes(&vr["failure"]);
+                let actual_informationals = extract_codes(&vr["informational"]);
+
+                let result = jf.search(&expected.formula, vr, globals_arg.as_ref(), None);
+                let (pass, reason) = formula_result_to_pass(result, &expected.formula);
+
+                if !pass {
+                    overall_pass = false;
+                }
+                manifest_results.push(ManifestResult {
+                    index: i,
+                    pass,
+                    reasons: if pass { vec![] } else { vec![reason] },
+                    actual_successes,
+                    actual_failures,
+                    actual_informationals,
+                });
+            }
+
+            return Ok(ValidationReport {
+                description: test_case.description,
+                overall_pass,
+                manifests: manifest_results,
+                validation_time_ignored,
+            });
+        }
+    }
+}
+
+fn formula_result_to_pass(
+    result: Result<serde_json::Value, JsonFormulaError>,
+    formula: &str,
+) -> (bool, String) {
+    match result {
+        Ok(v) if is_truthy(&v) => (true, String::new()),
+        Ok(_) => (false, format!("formula returned falsy: {}", formula)),
+        Err(e) => (false, format!("formula error: {} (formula: {})", e, formula)),
+    }
 }
 
 fn extract_codes(value: &serde_json::Value) -> Vec<String> {
