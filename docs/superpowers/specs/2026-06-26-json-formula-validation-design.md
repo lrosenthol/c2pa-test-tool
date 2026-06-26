@@ -13,7 +13,7 @@ The current `manifests:` DSL (`isEmpty`, `containsAllOf`, `containsNoneOf`, etc.
 
 - Is already present in the dependency tree (via `profile-evaluator-rs` → `json-formula-rs`)
 - Handles arbitrary boolean logic, not just the fixed set of predicates
-- Is human-readable: `length(failure) = 0 && contains(success[*].code, 'claimSignature.validated')`
+- Is human-readable: `length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0`
 - Eliminates a custom DSL and its evaluation code from this codebase
 
 ## Schema Change
@@ -35,7 +35,7 @@ manifests:
 
 ```yaml
 manifests:
-  - formula: "length(failure) = 0 && contains(success[*].code, 'claimSignature.validated') && contains(success[*].code, 'signingCredential.trusted')"
+  - formula: "length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0 && length(success[?code == 'signingCredential.trusted']) > 0"
 ```
 
 Each `manifests:` array entry contains exactly one `formula` field (a JSON Formula expression string). The array ordering is unchanged: active manifest first, matching crJSON manifest order.
@@ -56,12 +56,17 @@ The formula must return a truthy JSON value (`true`, a non-zero number, a non-em
 
 ## Example Translations
 
+The preferred syntax for checking whether a code is present in an array is the JMESPath filter projection:
+`length(success[?code == 'claimSignature.validated']) > 0`
+
+This is unambiguous across JSON Formula implementations: filter the `success` array to entries where `.code` equals the target string, then check the count is greater than zero.
+
 | Test case | Formula |
 |---|---|
-| `png_valid` | `length(failure) = 0 && contains(success[*].code, 'claimSignature.validated') && contains(success[*].code, 'signingCredential.trusted')` |
-| `wrong_signing_key` | `contains(failure[*].code, 'claimSignature.mismatch') && !contains(success[*].code, 'claimSignature.validated')` |
-| `ingredient_with_hard_binding_mismatch` manifest[0] | `length(failure) = 0 && contains(success[*].code, 'signingCredential.trusted') && contains(success[*].code, 'claimSignature.insideValidity') && contains(success[*].code, 'claimSignature.validated')` |
-| `ingredient_with_hard_binding_mismatch` manifest[1] | `contains(failure[*].code, 'assertion.dataHash.mismatch') && !contains(success[*].code, 'assertion.dataHash.match')` |
+| `png_valid` | `length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0 && length(success[?code == 'signingCredential.trusted']) > 0` |
+| `wrong_signing_key` | `length(failure[?code == 'claimSignature.mismatch']) > 0 && length(success[?code == 'claimSignature.validated']) = 0` |
+| `ingredient_with_hard_binding_mismatch` manifest[0] | `length(failure) = 0 && length(success[?code == 'signingCredential.trusted']) > 0 && length(success[?code == 'claimSignature.insideValidity']) > 0 && length(success[?code == 'claimSignature.validated']) > 0` |
+| `ingredient_with_hard_binding_mismatch` manifest[1] | `length(failure[?code == 'assertion.dataHash.mismatch']) > 0 && length(success[?code == 'assertion.dataHash.match']) = 0` |
 
 ## Rust Implementation Changes
 
@@ -84,7 +89,7 @@ The formula must return a truthy JSON value (`true`, a non-zero number, a non-em
 
 ### `tests/validation/validation_test.schema.json`
 
-Replace the `ManifestResult` definition:
+Replace the `ManifestResult` JSON schema definition (note: this is the schema object named `ManifestResult`, not the Rust struct `ManifestResult` in `src/validation.rs` which is the report output type and is unchanged):
 
 ```json
 "ManifestResult": {
@@ -113,6 +118,20 @@ When a formula fails, the report includes:
 - The formula string that was evaluated
 - Whether it returned falsy or threw an error (with error message)
 - The actual `validationResults` values (successes, failures, informationals) for diagnosis
+
+## Edge Cases
+
+### Empty `manifests: []`
+
+An empty `manifests:` list (zero entries) retains its existing meaning: the test expects the asset to contain no C2PA manifests. This behavior is unchanged — no formula is evaluated; the test passes if and only if crJSON contains zero manifests.
+
+### Formula error reporting format
+
+When a manifest formula fails, the `reasons` field of the `ManifestResult` report struct contains entries in the following formats:
+- Falsy result: `"formula returned falsy: <formula-string>"`
+- Evaluation error: `"formula error: <error-message> (formula: <formula-string>)"`
+
+The actual `validationResults` successes, failures, and informationals are also included in the report output for diagnosis (existing behavior preserved).
 
 ## Non-Goals
 
