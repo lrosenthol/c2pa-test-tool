@@ -99,6 +99,84 @@ fn test_validation_test_case_has_globals_and_expressions() {
     assert!(tc.formula.is_some());
 }
 
+// --- Debug message tests ---
+
+/// Evaluates a formula and returns (truthy, debug_messages).
+fn eval_with_debug(formula: &str, data: serde_json::Value) -> (bool, Vec<String>) {
+    let mut jf = JsonFormula::new();
+    let result = jf.search(formula, &data, None, None);
+    let debug = jf.take_debug();
+    let truthy = match result {
+        Ok(v) => crtool::validation::is_truthy(&v),
+        Err(_) => false,
+    };
+    (truthy, debug)
+}
+
+#[test]
+fn test_debug_messages_emitted_for_missing_field() {
+    let data = json!({"failure": [], "success": [], "informational": []});
+    let (truthy, debug) = eval_with_debug("length(typo_failures) > 0", data);
+    assert!(!truthy);
+    assert!(
+        debug.iter().any(|m| m.contains("typo_failures")),
+        "expected a debug message naming the missing field, got: {:?}",
+        debug
+    );
+    assert!(
+        debug.iter().any(|m| m.contains("failure") || m.contains("Available")),
+        "expected a debug message hinting at available fields, got: {:?}",
+        debug
+    );
+}
+
+#[test]
+fn test_no_debug_messages_on_plain_falsy_result() {
+    // Formula is syntactically correct and all fields exist; just returns false.
+    let data = json!({"failure": [], "success": [], "informational": []});
+    let (truthy, debug) = eval_with_debug("length(failure) > 0", data);
+    assert!(!truthy);
+    assert!(
+        debug.is_empty(),
+        "expected no debug messages for a plain falsy result, got: {:?}",
+        debug
+    );
+}
+
+#[test]
+fn test_debug_messages_surface_in_validation_report() {
+    // Write a temp YAML inside tests/validation/ so relative asset paths resolve.
+    let yaml_content = r#"description: debug surface test
+inputs:
+  assetPath: ./png_valid.png
+  claimSignerTrustListPaths:
+  - certs/root_ca1_cert.pem
+  tsaTrustListPaths:
+  - certs/root_ca1_cert.pem
+manifests:
+- formula: length(typo_failures) > 0
+"#;
+
+    let yaml_dir = std::path::Path::new("tests/validation");
+    let tmp = tempfile::Builder::new()
+        .prefix("_debug_test_")
+        .suffix(".yaml")
+        .tempfile_in(yaml_dir)
+        .expect("failed to create temp yaml");
+    std::fs::write(tmp.path(), yaml_content).expect("failed to write temp yaml");
+
+    let report = crtool::validation::run_validation(tmp.path())
+        .expect("run_validation should not error");
+
+    assert!(!report.overall_pass, "formula with wrong field name should fail");
+    let reasons = &report.manifests[0].reasons;
+    assert!(
+        reasons.iter().any(|r| r.contains("debug:") && r.contains("typo_failures")),
+        "expected a 'debug:' reason naming the missing field, got: {:?}",
+        reasons
+    );
+}
+
 use std::path::Path;
 
 const REPORT_DIR: &str = "target/test_output/validation";
