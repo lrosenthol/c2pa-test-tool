@@ -33,7 +33,14 @@ Exactly one of the following must be present:
 * `manifests` — an array of per-manifest checks, active manifest first (matching crJSON order). Each entry has one field:
   * `formula` — a JSON Formula string evaluated against the manifest's raw `validationResults` object: `{success: [{code, url}], failure: [{code, url}], informational: [{code, url}]}`. Must return truthy to pass.
 
-**Note:** json-formula-rs requires double-quoted strings in filter expressions. Use `"claimSignature.validated"` not `'claimSignature.validated'` — single quotes silently return no results.
+**Note:** json-formula-rs requires double-quoted strings in filter expressions (`"claimSignature.validated"`, not `'claimSignature.validated'` — single quotes silently return no results). Use YAML's `>-` block scalar to write multi-line formulas without quoting conflicts:
+
+```yaml
+manifests:
+- formula: >-
+    length(failure) = 0 &&
+    length(success[?code == "claimSignature.validated"]) > 0
+```
 
 ### Example formulas
 

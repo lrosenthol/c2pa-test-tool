@@ -7,4 +7,7 @@ inputs:
   - certs/root_ca1_cert.pem
   validationTime: "2001-06-01T00:00:00Z"
 manifests:
-- formula: 'length(failure) = 0 && length(success[?code == "claimSignature.validated"]) > 0 && length(success[?code == "signingCredential.trusted"]) > 0'
+- formula: >-
+    length(failure) = 0 &&
+    length(success[?code == "claimSignature.validated"]) > 0 &&
+    length(success[?code == "signingCredential.trusted"]) > 0
