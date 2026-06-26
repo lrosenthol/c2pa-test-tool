@@ -52,7 +52,7 @@ Each formula is evaluated against the manifest's raw `validationResults` object 
 }
 ```
 
-The formula must return a truthy JSON value (`true`, a non-zero number, a non-empty string) to pass. A falsy result (`false`, `null`, `0`, `""`) or an evaluation error is a failure.
+All example formulas in this spec use comparison operators (`>`, `=`) which always return a boolean. The formula is expected to return a boolean; if it returns another type, JSON Formula's native truthiness applies (non-zero numbers, non-empty strings, non-empty arrays, and non-empty objects are truthy). A falsy result (`false`, `null`, `0`, `""`, `[]`) or an evaluation error is a failure.
 
 ## Example Translations
 
@@ -80,10 +80,17 @@ This is unambiguous across JSON Formula implementations: filter the `success` ar
        pub formula: String,
    }
    ```
-3. **Add** `json-formula-rs` as a direct dependency in `Cargo.toml`.
-4. **Replace** per-manifest predicate evaluation in `run_validation()` with:
-   - Parse the formula string via `json_formula_rs` (or equivalent API)
-   - Evaluate against the manifest's `validationResults` JSON value
+3. **Add** `json-formula-rs` as a direct dependency in `Cargo.toml` (match the version already present in `Cargo.lock`).
+4. **Replace** per-manifest predicate evaluation in `run_validation()` using the `json_formula_rs` crate API:
+   ```rust
+   use json_formula_rs::{JsonFormula, JsonFormulaError};
+
+   let jf = JsonFormula::new();
+   let result: Result<serde_json::Value, JsonFormulaError> =
+       jf.search(&expectation.formula, &validation_results_json, None, None);
+   ```
+   - `validation_results_json` is the `serde_json::Value` of the manifest's `validationResults` object
+   - `globals` and `language` parameters are both `None` (no globals needed, default locale)
    - Treat truthy result as pass, falsy/error as fail
    - On error: record the error message as the failure reason
 
@@ -108,6 +115,8 @@ Replace the `ManifestResult` JSON schema definition (note: this is the schema ob
 
 Remove `StatusCodesExpectations`, `StatusCodeSet` definitions.
 
+`"additionalProperties": false` is intentional — the schema is for a controlled test-case format, not a public extension point. Any future fields require an explicit schema update.
+
 ### Test YAML files
 
 All existing `tests/validation/*.yaml` files are rewritten to use `formula:` entries (see example translations above). The `inputs:` section is unchanged.
@@ -124,6 +133,10 @@ When a formula fails, the report includes:
 ### Empty `manifests: []`
 
 An empty `manifests:` list (zero entries) retains its existing meaning: the test expects the asset to contain no C2PA manifests. This behavior is unchanged — no formula is evaluated; the test passes if and only if crJSON contains zero manifests.
+
+### Manifest count mismatch
+
+The number of `manifests:` entries in the YAML must exactly match the number of manifests in the asset's crJSON. If the YAML has more entries than crJSON has manifests, the test fails with reason: `"crJSON has N manifest(s) but test case expects at least M"` (existing behavior, unchanged). If the YAML has fewer entries than crJSON has manifests, only the first N manifests are checked — excess crJSON manifests are ignored (existing behavior, unchanged).
 
 ### Formula error reporting format
 
