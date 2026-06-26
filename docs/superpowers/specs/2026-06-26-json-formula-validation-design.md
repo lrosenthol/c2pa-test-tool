@@ -1,11 +1,11 @@
 # Design: Replace Manifest Predicate DSL with JSON Formula Expressions
 
 **Date:** 2026-06-26
-**Status:** Approved
+**Status:** Draft (revised)
 
 ## Overview
 
-Replace the custom predicate DSL in each `manifests:` entry of validation test-case YAMLs with a single [JSON Formula](https://opensource.adobe.com/json-formula/) string expression. The formula evaluates against the manifest's raw `validationResults` object from crJSON and must return a truthy value for the manifest check to pass.
+Replace the custom predicate DSL in each `manifests:` entry of validation test-case YAMLs with a single [JSON Formula](https://opensource.adobe.com/json-formula/) string expression. Additionally, add top-level `globals:` and `expressions:` fields (consistent with the rubric/profile YAML format) and a top-level `formula:` field for the zero-manifest case.
 
 ## Motivation
 
@@ -15,11 +15,42 @@ The current `manifests:` DSL (`isEmpty`, `containsAllOf`, `containsNoneOf`, etc.
 - Handles arbitrary boolean logic, not just the fixed set of predicates
 - Is human-readable: `length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0`
 - Eliminates a custom DSL and its evaluation code from this codebase
+- Aligns the validation YAML format with the existing rubric/profile YAML conventions
 
 ## Schema Change
 
-### Before (per manifest entry)
+### Top-level structure
 
+```yaml
+description: "Human-readable description of the test case"
+
+inputs:                          # unchanged
+  assetPath: ./asset.png
+  claimSignerTrustListPaths: [certs/root_ca1_cert.pem]
+  tsaTrustListPaths: [certs/root_ca1_cert.pem]
+  validationTime: "2001-06-01T00:00:00Z"
+
+globals:                         # optional; key→value map passed as globals to all formulas
+  $my_codes:
+    - claimSignature.validated
+    - signingCredential.trusted
+
+expressions:                     # optional; named sub-expressions available in all formulas
+  _vr: "(@.validationResults)"
+
+# Exactly one of `formula:` or `manifests:` must be present:
+
+formula: "..."                   # for zero-manifest case; evaluated against full crJSON
+
+manifests:                       # for per-manifest checks; one entry per manifest
+  - formula: "..."
+```
+
+`formula:` (top-level) and `manifests:` are mutually exclusive. If `manifests:` is present it must be non-empty.
+
+### Per-manifest entry (before → after)
+
+**Before:**
 ```yaml
 manifests:
   - failures:
@@ -31,18 +62,19 @@ manifests:
           - signingCredential.trusted
 ```
 
-### After (per manifest entry)
-
+**After:**
 ```yaml
 manifests:
   - formula: "length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0 && length(success[?code == 'signingCredential.trusted']) > 0"
 ```
 
-Each `manifests:` array entry contains exactly one `formula` field (a JSON Formula expression string). The array ordering is unchanged: active manifest first, matching crJSON manifest order.
+Each `manifests:` array entry contains exactly one `formula` field. The array ordering is unchanged: active manifest first, matching crJSON manifest order.
 
-## Formula Evaluation Context
+## Formula Evaluation Contexts
 
-Each formula is evaluated against the manifest's raw `validationResults` object from crJSON:
+### Per-manifest formula (inside `manifests:`)
+
+Evaluated against the manifest's raw `validationResults` object from crJSON:
 
 ```json
 {
@@ -52,21 +84,43 @@ Each formula is evaluated against the manifest's raw `validationResults` object 
 }
 ```
 
-All example formulas in this spec use comparison operators (`>`, `=`) which always return a boolean. The formula is expected to return a boolean; if it returns another type, JSON Formula's native truthiness applies (non-zero numbers, non-empty strings, non-empty arrays, and non-empty objects are truthy). A falsy result (`false`, `null`, `0`, `""`, `[]`) or an evaluation error is a failure.
+### Top-level `formula:`
+
+Evaluated against the full crJSON document:
+
+```json
+{
+  "manifests": [...],
+  "active_manifest": "...",
+  ...
+}
+```
+
+Used when the test expects no C2PA manifests in the asset, e.g.:
+```yaml
+formula: "length(manifests) = 0"
+```
+
+### Globals and expressions
+
+`globals:` values are accessible in any formula via `$name`. `expressions:` entries are named sub-expressions, also accessible as globals (consistent with how `profile-evaluator-rs` handles rubric expressions). Both are passed to `jf.search()` as the globals argument, pre-processed by the evaluator before formula execution.
+
+### Truthiness
+
+All example formulas return a boolean via comparison operators (`>`, `=`, `==`). If a formula returns a non-boolean, JSON Formula's native truthiness applies: non-zero numbers, non-empty strings, non-empty arrays, and non-empty objects are truthy. A falsy result (`false`, `null`, `0`, `""`, `[]`) or an evaluation error is a failure.
 
 ## Example Translations
 
-The preferred syntax for checking whether a code is present in an array is the JMESPath filter projection:
+The preferred syntax for checking whether a status code is present:
 `length(success[?code == 'claimSignature.validated']) > 0`
 
-This is unambiguous across JSON Formula implementations: filter the `success` array to entries where `.code` equals the target string, then check the count is greater than zero.
-
-| Test case | Formula |
+| Test case | Formula (in `manifests:` entry or top-level `formula:`) |
 |---|---|
 | `png_valid` | `length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0 && length(success[?code == 'signingCredential.trusted']) > 0` |
 | `wrong_signing_key` | `length(failure[?code == 'claimSignature.mismatch']) > 0 && length(success[?code == 'claimSignature.validated']) = 0` |
 | `ingredient_with_hard_binding_mismatch` manifest[0] | `length(failure) = 0 && length(success[?code == 'signingCredential.trusted']) > 0 && length(success[?code == 'claimSignature.insideValidity']) > 0 && length(success[?code == 'claimSignature.validated']) > 0` |
 | `ingredient_with_hard_binding_mismatch` manifest[1] | `length(failure[?code == 'assertion.dataHash.mismatch']) > 0 && length(success[?code == 'assertion.dataHash.match']) = 0` |
+| asset with no manifests | top-level `formula: "length(manifests) = 0"` |
 
 ## Rust Implementation Changes
 
@@ -80,32 +134,53 @@ This is unambiguous across JSON Formula implementations: filter the `success` ar
        pub formula: String,
    }
    ```
-3. **Add** `json-formula-rs` as a direct dependency in `Cargo.toml` (match the version already present in `Cargo.lock`).
-4. **Replace** per-manifest predicate evaluation in `run_validation()` using the `json_formula_rs` crate API:
+3. **Add** `globals` and `expressions` fields to `ValidationTestCase`:
+   ```rust
+   #[derive(Debug, Deserialize)]
+   pub struct ValidationTestCase {
+       pub description: String,
+       pub inputs: Inputs,
+       #[serde(default)]
+       pub globals: serde_json::Value,           // object or null
+       #[serde(default)]
+       pub expressions: IndexMap<String, String>, // name → expression string
+       pub formula: Option<String>,              // top-level; mutually exclusive with manifests
+       pub manifests: Option<Vec<ManifestExpectation>>,
+       #[serde(rename = "validatorSpecVersions", default)]
+       pub validator_spec_versions: Vec<String>,
+   }
+   ```
+   Validation at parse time: error if both `formula` and `manifests` are present, or if neither is present.
+4. **Add** `json-formula-rs = "=0.2.0"` as a direct dependency in `Cargo.toml`.
+5. **Build globals** before evaluation: merge `expressions` entries into the globals object so named sub-expressions are accessible from all formulas (consistent with how `profile-evaluator-rs` processes rubric expressions).
+6. **Evaluate per-manifest formulas** using:
    ```rust
    use json_formula_rs::{JsonFormula, JsonFormulaError};
 
    let jf = JsonFormula::new();
-   let result: Result<serde_json::Value, JsonFormulaError> =
-       jf.search(&expectation.formula, &validation_results_json, None, None);
+   // validation_results_json = manifest_json["validationResults"].clone()
+   // merged_globals = globals merged with expressions entries
+   let result = jf.search(&expectation.formula, &validation_results_json,
+                           Some(&merged_globals), None);
    ```
-   - `validation_results_json` is the `serde_json::Value` of the manifest's `validationResults` object
-   - `globals` and `language` parameters are both `None` (no globals needed, default locale)
-   - Treat truthy result as pass, falsy/error as fail
-   - On error: record the error message as the failure reason
+7. **Evaluate top-level formula** (when `formula:` is present) with the full crJSON as data:
+   ```rust
+   let result = jf.search(&formula, &crjson_value, Some(&merged_globals), None);
+   ```
+8. Treat truthy result as pass, falsy/error as fail. On error, record the error message as a failure reason.
 
 ### `tests/validation/validation_test.schema.json`
 
-Replace the `ManifestResult` JSON schema definition (note: this is the schema object named `ManifestResult`, not the Rust struct `ManifestResult` in `src/validation.rs` which is the report output type and is unchanged):
+**Replace** the `ManifestResult` JSON schema definition (this is the schema object, not the Rust report struct `ManifestResult` in `src/validation.rs` which is unchanged):
 
 ```json
-"ManifestResult": {
-  "description": "Expectation for a single manifest, expressed as a JSON Formula string.",
+"ManifestExpectation": {
+  "description": "Formula expectation for a single manifest.",
   "type": "object",
   "properties": {
     "formula": {
       "type": "string",
-      "description": "A JSON Formula expression evaluated against the manifest's validationResults object. Must return truthy to pass."
+      "description": "JSON Formula expression evaluated against the manifest's validationResults object. Must return truthy to pass."
     }
   },
   "required": ["formula"],
@@ -113,9 +188,29 @@ Replace the `ManifestResult` JSON schema definition (note: this is the schema ob
 }
 ```
 
-Remove `StatusCodesExpectations`, `StatusCodeSet` definitions.
+**Add** top-level fields to the root schema object:
 
-`"additionalProperties": false` is intentional — the schema is for a controlled test-case format, not a public extension point. Any future fields require an explicit schema update.
+```json
+"formula": {
+  "type": "string",
+  "description": "Top-level JSON Formula expression for the zero-manifest case, evaluated against the full crJSON. Mutually exclusive with manifests."
+},
+"globals": {
+  "type": "object",
+  "description": "Named values passed as globals to all formula evaluations. Keys accessible via $name in formulas."
+},
+"expressions": {
+  "type": "object",
+  "additionalProperties": { "type": "string" },
+  "description": "Named sub-expressions available in all formulas. Merged into globals before evaluation."
+}
+```
+
+**Remove** `StatusCodesExpectations`, `StatusCodeSet`, `ManifestResult` (old) definitions.
+
+Update the root `required` to no longer require `manifests`.
+
+`"additionalProperties": false` is intentional — any future fields require an explicit schema update.
 
 ### Test YAML files
 
@@ -123,31 +218,24 @@ All existing `tests/validation/*.yaml` files are rewritten to use `formula:` ent
 
 ## Error Reporting
 
-When a formula fails, the report includes:
-- The formula string that was evaluated
-- Whether it returned falsy or threw an error (with error message)
-- The actual `validationResults` values (successes, failures, informationals) for diagnosis
-
-## Edge Cases
-
-### Empty `manifests: []`
-
-An empty `manifests:` list (zero entries) retains its existing meaning: the test expects the asset to contain no C2PA manifests. This behavior is unchanged — no formula is evaluated; the test passes if and only if crJSON contains zero manifests.
-
-### Manifest count mismatch
-
-The number of `manifests:` entries in the YAML must exactly match the number of manifests in the asset's crJSON. If the YAML has more entries than crJSON has manifests, the test fails with reason: `"crJSON has N manifest(s) but test case expects at least M"` (existing behavior, unchanged). If the YAML has fewer entries than crJSON has manifests, only the first N manifests are checked — excess crJSON manifests are ignored (existing behavior, unchanged).
-
-### Formula error reporting format
-
-When a manifest formula fails, the `reasons` field of the `ManifestResult` report struct contains entries in the following formats:
+When a formula fails, the `reasons` field of the `ManifestResult` Rust report struct contains:
 - Falsy result: `"formula returned falsy: <formula-string>"`
 - Evaluation error: `"formula error: <error-message> (formula: <formula-string>)"`
 
-The actual `validationResults` successes, failures, and informationals are also included in the report output for diagnosis (existing behavior preserved).
+The actual `validationResults` successes, failures, and informationals are still included in the report output for diagnosis (existing behavior preserved).
+
+## Edge Cases
+
+### Manifest count mismatch (per-manifest path)
+
+When `manifests:` is present, if the YAML has more entries than crJSON has manifests, the test fails with: `"crJSON has N manifest(s) but test case expects at least M"`. If fewer entries than manifests, only the first N are checked (existing behavior).
+
+### Top-level formula with non-empty manifests
+
+It is a YAML authoring error to use `formula:` when the asset actually has manifests. The top-level formula evaluates against the full crJSON regardless — the author is responsible for the formula being meaningful.
 
 ## Non-Goals
 
 - No migration path or backward compatibility with the old predicate DSL — it is removed entirely.
 - No change to the `inputs:` section of the YAML.
-- No change to how manifests are ordered or indexed.
+- No change to manifest ordering or indexing.
