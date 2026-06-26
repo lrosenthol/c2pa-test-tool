@@ -18,13 +18,12 @@ globals:
     - assertion.dataHash.match
 expressions:
   _isEmpty: "length(@[0]) = 0"
-  _containsAllOf: "length(@[0][?contains($active_success_codes, code)]) = length($active_success_codes)"
-  _containsAllOfFailures: "length(@[0][?contains($ingredient_expected_failure_codes, code)]) = length($ingredient_expected_failure_codes)"
-  _containsNoneOf: "length(@[0][?contains($ingredient_excluded_success_codes, code)]) = 0"
+  _containsAllOf: "length(@[0][?contains(@[1], code)]) = length(@[1])"
+  _containsNoneOf: "length(@[0][?contains(@[1], code)]) = 0"
 manifests:
 - formula: >-
     _isEmpty(failure) &&
-    _containsAllOf(success)
+    _containsAllOf(success, $active_success_codes)
 - formula: >-
-    _containsAllOfFailures(failure) &&
-    _containsNoneOf(success)
+    _containsAllOf(failure, $ingredient_expected_failure_codes) &&
+    _containsNoneOf(success, $ingredient_excluded_success_codes)
