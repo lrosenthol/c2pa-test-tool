@@ -47,7 +47,6 @@ pub struct ManifestExpectation {
     pub formula: String,
 }
 
-
 pub fn is_truthy(v: &serde_json::Value) -> bool {
     match v {
         serde_json::Value::Bool(b) => *b,
@@ -194,15 +193,15 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
     let crjson_value: serde_json::Value =
         serde_json::from_str(&reader.crjson()).context("Failed to parse crJSON output")?;
 
-    let manifests_json = crjson_value["manifests"]
-        .as_array()
-        .context("crJSON has no 'manifests' array")?;
-
     let validation_time_ignored = test_case.inputs.validation_time.is_some();
 
     let mut jf = JsonFormula::new();
     let merged_globals = build_globals(&test_case.globals, &test_case.expressions);
-    let globals_arg = if merged_globals.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+    let globals_arg = if merged_globals
+        .as_object()
+        .map(|o| o.is_empty())
+        .unwrap_or(true)
+    {
         None
     } else {
         Some(merged_globals.clone())
@@ -224,7 +223,7 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
         (Some(top_formula), None) => {
             let result = jf.search(top_formula, &crjson_value, globals_arg.as_ref(), None);
             let (pass, reason) = formula_result_to_pass(result, top_formula);
-            return Ok(ValidationReport {
+            Ok(ValidationReport {
                 description: test_case.description,
                 overall_pass: pass,
                 manifests: if pass {
@@ -240,9 +239,13 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
                     }]
                 },
                 validation_time_ignored,
-            });
+            })
         }
         (None, Some(expected_manifests)) => {
+            let manifests_json = crjson_value["manifests"]
+                .as_array()
+                .context("crJSON has no 'manifests' array")?;
+
             let mut manifest_results = Vec::new();
             let mut overall_pass = true;
 
@@ -276,12 +279,12 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
                 });
             }
 
-            return Ok(ValidationReport {
+            Ok(ValidationReport {
                 description: test_case.description,
                 overall_pass,
                 manifests: manifest_results,
                 validation_time_ignored,
-            });
+            })
         }
     }
 }
@@ -293,7 +296,10 @@ fn formula_result_to_pass(
     match result {
         Ok(v) if is_truthy(&v) => (true, String::new()),
         Ok(_) => (false, format!("formula returned falsy: {}", formula)),
-        Err(e) => (false, format!("formula error: {} (formula: {})", e, formula)),
+        Err(e) => (
+            false,
+            format!("formula error: {} (formula: {})", e, formula),
+        ),
     }
 }
 
