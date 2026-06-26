@@ -61,6 +61,35 @@ fn test_contains_all_of_fails_when_one_missing() {
     assert!(!pass);
 }
 
+#[test]
+fn test_manifest_expectation_has_formula_field() {
+    let exp = crtool::validation::ManifestExpectation {
+        formula: "length(failure) = 0".to_string(),
+    };
+    assert_eq!(exp.formula, "length(failure) = 0");
+}
+
+#[test]
+fn test_validation_test_case_has_globals_and_expressions() {
+    use indexmap::IndexMap;
+    use serde_json::json;
+    let tc = crtool::validation::ValidationTestCase {
+        description: "test".to_string(),
+        inputs: crtool::validation::Inputs {
+            asset_path: "x.jpg".to_string(),
+            claim_signer_trust_list_paths: vec![],
+            tsa_trust_list_paths: vec![],
+            validation_time: None,
+        },
+        globals: json!({}),
+        expressions: IndexMap::new(),
+        formula: Some("length(manifests) = 0".to_string()),
+        manifests: None,
+        validator_spec_versions: vec![],
+    };
+    assert!(tc.formula.is_some());
+}
+
 use std::path::Path;
 
 const REPORT_DIR: &str = "target/test_output/validation";

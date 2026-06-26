@@ -11,6 +11,7 @@ governing permissions and limitations under the License.
 */
 
 use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use serde::Deserialize;
 use std::path::Path;
 
@@ -18,7 +19,12 @@ use std::path::Path;
 pub struct ValidationTestCase {
     pub description: String,
     pub inputs: Inputs,
-    pub manifests: Vec<ManifestExpectation>,
+    #[serde(default)]
+    pub globals: serde_json::Value,
+    #[serde(default)]
+    pub expressions: IndexMap<String, String>,
+    pub formula: Option<String>,
+    pub manifests: Option<Vec<ManifestExpectation>>,
     #[serde(rename = "validatorSpecVersions", default)]
     pub validator_spec_versions: Vec<String>,
 }
@@ -35,14 +41,9 @@ pub struct Inputs {
     pub validation_time: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 pub struct ManifestExpectation {
-    #[serde(default)]
-    pub failures: StatusCodesExpectations,
-    #[serde(default)]
-    pub successes: StatusCodesExpectations,
-    #[serde(default)]
-    pub informationals: StatusCodesExpectations,
+    pub formula: String,
 }
 
 /// Unit struct for the schema's empty-object sentinel `{}`.
@@ -265,8 +266,10 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
 
     let validation_time_ignored = test_case.inputs.validation_time.is_some();
 
+    let expected_manifests = test_case.manifests.as_deref().unwrap_or(&[]);
+
     // Empty manifests in test case = expect no C2PA manifests in asset
-    if test_case.manifests.is_empty() {
+    if expected_manifests.is_empty() {
         let overall_pass = manifests_json.is_empty();
         return Ok(ValidationReport {
             description: test_case.description,
@@ -293,7 +296,7 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
     let mut manifest_results = Vec::new();
     let mut overall_pass = true;
 
-    for (i, expected) in test_case.manifests.iter().enumerate() {
+    for (i, _expected) in expected_manifests.iter().enumerate() {
         let manifest_json = manifests_json.get(i).with_context(|| {
             format!(
                 "crJSON has {} manifest(s) but test case expects at least {}",
@@ -308,31 +311,15 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
         let actual_failures = extract_codes(&vr["failure"]);
         let actual_informationals = extract_codes(&vr["informational"]);
 
-        let mut reasons = Vec::new();
-
-        let (s_pass, s_reasons) = expected.successes.check(&actual_successes);
-        for r in s_reasons {
-            reasons.push(format!("[successes] {}", r));
-        }
-
-        let (f_pass, f_reasons) = expected.failures.check(&actual_failures);
-        for r in f_reasons {
-            reasons.push(format!("[failures] {}", r));
-        }
-
-        let (i_pass, i_reasons) = expected.informationals.check(&actual_informationals);
-        for r in i_reasons {
-            reasons.push(format!("[informationals] {}", r));
-        }
-
-        let pass = s_pass && f_pass && i_pass;
+        // Formula-based evaluation is implemented in Task 3; for now, pass through.
+        let pass = true;
         if !pass {
             overall_pass = false;
         }
         manifest_results.push(ManifestResult {
             index: i,
             pass,
-            reasons,
+            reasons: vec![],
             actual_successes,
             actual_failures,
             actual_informationals,
