@@ -1,0 +1,25 @@
+description: JPEG with C2PA manifest, carrying a c2pa.opened action that references
+  an ingredient with a data hash failure
+inputs:
+  assetPath: ./ingredient_with_hard_binding_mismatch.jpg
+  claimSignerTrustListPaths:
+  - certs/root_ca1_cert.pem
+  tsaTrustListPaths:
+  - certs/root_ca1_cert.pem
+  validationTime: "2001-06-01T00:00:00Z"
+globals:
+  $active_success_codes:
+    - signingCredential.trusted
+    - claimSignature.insideValidity
+    - claimSignature.validated
+expressions:
+  _isEmpty: "length(@[0]) = 0"
+  _hasActiveManifestSuccessCodes: "length(@[0][?contains($active_success_codes, code)]) = length($active_success_codes)"
+  _containsCode: "contains(@[0][*].code, @[1])"
+manifests:
+- formula: >-
+    _isEmpty(failure) &&
+    _hasActiveManifestSuccessCodes(success)
+- formula: >-
+    _containsCode(failure, "assertion.dataHash.mismatch") &&
+    !_containsCode(success, "assertion.dataHash.match")

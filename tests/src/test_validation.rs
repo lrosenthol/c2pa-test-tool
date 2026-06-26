@@ -10,55 +10,219 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-use crtool::validation::{EmptyObject, StatusCodeSet, StatusCodesExpectations};
+use json_formula_rs::JsonFormula;
+use serde_json::json;
 
-fn exp_is_empty() -> StatusCodesExpectations {
-    StatusCodesExpectations {
-        is_empty: Some(EmptyObject {}),
-        ..Default::default()
+fn eval_formula(formula: &str, data: serde_json::Value) -> bool {
+    eval_formula_with_globals(formula, data, None)
+}
+
+fn eval_formula_with_globals(
+    formula: &str,
+    data: serde_json::Value,
+    globals: Option<serde_json::Value>,
+) -> bool {
+    let mut jf = JsonFormula::new();
+    match jf.search(formula, &data, globals.as_ref(), None) {
+        Ok(v) => crtool::validation::is_truthy(&v),
+        Err(_) => false,
     }
 }
 
-fn exp_contains_all_of(codes: &[&str]) -> StatusCodesExpectations {
-    StatusCodesExpectations {
-        contains_all_of: Some(StatusCodeSet {
-            codes: codes.iter().map(|s| s.to_string()).collect(),
-        }),
-        ..Default::default()
-    }
+#[test]
+fn test_formula_empty_failure_set_passes() {
+    let data = json!({"success": [], "failure": [], "informational": []});
+    assert!(eval_formula("length(failure) = 0", data));
 }
 
 #[test]
-fn test_is_empty_passes_on_empty_set() {
-    let actual = vec![];
-    let (pass, _) = exp_is_empty().check(&actual);
-    assert!(pass);
+fn test_formula_non_empty_failure_set_fails() {
+    let data = json!({"success": [], "failure": [{"code": "claimSignature.mismatch", "url": ""}], "informational": []});
+    assert!(!eval_formula("length(failure) = 0", data));
 }
 
 #[test]
-fn test_is_empty_fails_on_non_empty_set() {
-    let actual = vec!["signingCredential.trusted".to_string()];
-    let (pass, _) = exp_is_empty().check(&actual);
-    assert!(!pass);
+fn test_formula_code_present_in_success() {
+    let data = json!({"success": [{"code": "claimSignature.validated", "url": ""}], "failure": [], "informational": []});
+    assert!(eval_formula(
+        r#"length(success[?code == "claimSignature.validated"]) > 0"#,
+        data
+    ));
 }
 
 #[test]
-fn test_contains_all_of_passes_when_all_present() {
-    let actual = vec![
-        "claimSignature.validated".to_string(),
-        "signingCredential.trusted".to_string(),
-    ];
-    let (pass, _) = exp_contains_all_of(&["claimSignature.validated", "signingCredential.trusted"])
-        .check(&actual);
-    assert!(pass);
+fn test_formula_code_absent_from_success() {
+    let data = json!({"success": [], "failure": [], "informational": []});
+    assert!(!eval_formula(
+        r#"length(success[?code == "claimSignature.validated"]) > 0"#,
+        data
+    ));
 }
 
 #[test]
-fn test_contains_all_of_fails_when_one_missing() {
-    let actual = vec!["claimSignature.validated".to_string()];
-    let (pass, _) = exp_contains_all_of(&["claimSignature.validated", "signingCredential.trusted"])
-        .check(&actual);
-    assert!(!pass);
+fn test_formula_globals_accessible_in_formula() {
+    let data = json!({"success": [{"code": "claimSignature.validated", "url": ""}], "failure": [], "informational": []});
+    let globals = json!({"$target_code": "claimSignature.validated"});
+    assert!(eval_formula_with_globals(
+        r#"length(success[?code == $target_code]) > 0"#,
+        data,
+        Some(globals),
+    ));
+}
+
+#[test]
+fn test_manifest_expectation_has_formula_field() {
+    let exp = crtool::validation::ManifestExpectation {
+        formula: "length(failure) = 0".to_string(),
+    };
+    assert_eq!(exp.formula, "length(failure) = 0");
+}
+
+#[test]
+fn test_validation_test_case_has_globals_and_expressions() {
+    use indexmap::IndexMap;
+    use serde_json::json;
+    let tc = crtool::validation::ValidationTestCase {
+        description: "test".to_string(),
+        inputs: crtool::validation::Inputs {
+            asset_path: "x.jpg".to_string(),
+            claim_signer_trust_list_paths: vec![],
+            tsa_trust_list_paths: vec![],
+            validation_time: None,
+        },
+        globals: json!({}),
+        expressions: IndexMap::new(),
+        formula: Some("length(manifests) = 0".to_string()),
+        manifests: None,
+        validator_spec_versions: vec![],
+    };
+    assert!(tc.formula.is_some());
+}
+
+// --- Debug message tests ---
+
+/// Evaluates a formula and returns (truthy, debug_messages).
+fn eval_with_debug(formula: &str, data: serde_json::Value) -> (bool, Vec<String>) {
+    let mut jf = JsonFormula::new();
+    let result = jf.search(formula, &data, None, None);
+    let debug = jf.take_debug();
+    let truthy = match result {
+        Ok(v) => crtool::validation::is_truthy(&v),
+        Err(_) => false,
+    };
+    (truthy, debug)
+}
+
+#[test]
+fn test_debug_messages_emitted_for_missing_field() {
+    let data = json!({"failure": [], "success": [], "informational": []});
+    let (truthy, debug) = eval_with_debug("length(typo_failures) > 0", data);
+    assert!(!truthy);
+    assert!(
+        debug.iter().any(|m| m.contains("typo_failures")),
+        "expected a debug message naming the missing field, got: {:?}",
+        debug
+    );
+    assert!(
+        debug.iter().any(|m| m.contains("failure") || m.contains("Available")),
+        "expected a debug message hinting at available fields, got: {:?}",
+        debug
+    );
+}
+
+#[test]
+fn test_no_debug_messages_on_plain_falsy_result() {
+    // Formula is syntactically correct and all fields exist; just returns false.
+    let data = json!({"failure": [], "success": [], "informational": []});
+    let (truthy, debug) = eval_with_debug("length(failure) > 0", data);
+    assert!(!truthy);
+    assert!(
+        debug.is_empty(),
+        "expected no debug messages for a plain falsy result, got: {:?}",
+        debug
+    );
+}
+
+#[test]
+fn test_validation_report_fails_when_formula_expectation_is_wrong() {
+    // Formula expects a code that is never present — should produce a clean falsy
+    // failure with no debug messages (field names are valid, just wrong values).
+    let yaml_content = r#"description: intentionally wrong expectation
+inputs:
+  assetPath: ./png_valid.png
+  claimSignerTrustListPaths:
+  - certs/root_ca1_cert.pem
+  tsaTrustListPaths:
+  - certs/root_ca1_cert.pem
+globals:
+  $required_codes:
+    - nonExistent.code
+expressions:
+  _containsAllOf: "length(@[0][?contains($required_codes, code)]) = length($required_codes)"
+manifests:
+- formula: _containsAllOf(success)
+"#;
+
+    let yaml_dir = std::path::Path::new("tests/validation");
+    let tmp = tempfile::Builder::new()
+        .prefix("_wrong_expectation_test_")
+        .suffix(".yaml")
+        .tempfile_in(yaml_dir)
+        .expect("failed to create temp yaml");
+    std::fs::write(tmp.path(), yaml_content).expect("failed to write temp yaml");
+
+    let report = crtool::validation::run_validation(tmp.path())
+        .expect("run_validation should not error");
+
+    assert!(!report.overall_pass, "wrong formula expectation should fail");
+    assert_eq!(report.manifests.len(), 1);
+    let m = &report.manifests[0];
+    assert!(!m.pass);
+    assert!(
+        m.reasons.iter().any(|r| r.contains("formula returned falsy")),
+        "expected 'formula returned falsy' reason, got: {:?}",
+        m.reasons
+    );
+    // No debug messages — fields are valid, the formula just evaluates to false
+    assert!(
+        !m.reasons.iter().any(|r| r.contains("debug:")),
+        "expected no debug messages for a plain falsy result, got: {:?}",
+        m.reasons
+    );
+}
+
+#[test]
+fn test_debug_messages_surface_in_validation_report() {
+    // Write a temp YAML inside tests/validation/ so relative asset paths resolve.
+    let yaml_content = r#"description: debug surface test
+inputs:
+  assetPath: ./png_valid.png
+  claimSignerTrustListPaths:
+  - certs/root_ca1_cert.pem
+  tsaTrustListPaths:
+  - certs/root_ca1_cert.pem
+manifests:
+- formula: length(typo_failures) > 0
+"#;
+
+    let yaml_dir = std::path::Path::new("tests/validation");
+    let tmp = tempfile::Builder::new()
+        .prefix("_debug_test_")
+        .suffix(".yaml")
+        .tempfile_in(yaml_dir)
+        .expect("failed to create temp yaml");
+    std::fs::write(tmp.path(), yaml_content).expect("failed to write temp yaml");
+
+    let report = crtool::validation::run_validation(tmp.path())
+        .expect("run_validation should not error");
+
+    assert!(!report.overall_pass, "formula with wrong field name should fail");
+    let reasons = &report.manifests[0].reasons;
+    assert!(
+        reasons.iter().any(|r| r.contains("debug:") && r.contains("typo_failures")),
+        "expected a 'debug:' reason naming the missing field, got: {:?}",
+        reasons
+    );
 }
 
 use std::path::Path;
@@ -120,10 +284,11 @@ fn test_run_all_validation_yaml_files() {
                 // Assert the failure is specifically expired certs, not something unexpected
                 if !report.overall_pass {
                     for m in &report.manifests {
-                        if !m
-                            .actual_failures
-                            .iter()
-                            .any(|c| c == "signingCredential.expired")
+                        if !m.actual_failures.is_empty()
+                            && !m
+                                .actual_failures
+                                .iter()
+                                .any(|c| c == "signingCredential.expired")
                         {
                             failures.push(format!(
                                 "{stem}: manifest[{}] failed with unexpected codes — not a clock issue. \
