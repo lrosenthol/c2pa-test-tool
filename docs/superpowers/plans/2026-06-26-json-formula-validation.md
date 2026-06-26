@@ -17,6 +17,7 @@
 | `Cargo.toml` | Add `json-formula-rs = "=0.2.0"` to `[dependencies]` |
 | `src/validation.rs` | Major rewrite: remove DSL structs, update `ValidationTestCase`, rewrite `run_validation()` |
 | `tests/src/test_validation.rs` | Remove unit tests for old DSL structs; update integration test for new report shape |
+| `tests/validation/README.md` | Rewrite schema description section to document `formula`, `globals`, `expressions`; remove old DSL reference |
 | `tests/validation/validation_test.schema.json` | Replace `ManifestResult`/`StatusCodesExpectations`/`StatusCodeSet`; add `formula`, `globals`, `expressions` to root |
 | `tests/validation/png_valid.yaml` | Rewrite |
 | `tests/validation/mp3_valid.yaml` | Rewrite |
@@ -648,4 +649,68 @@ This task replaces the evaluation loop and removes the old DSL structs. After th
   ```bash
   git add tests/validation/validation_test.schema.json
   git commit -m "chore: update validation test schema for json-formula format"
+  ```
+
+---
+
+## Task 6: Update `tests/validation/README.md`
+
+**Files:**
+- Modify: `tests/validation/README.md`
+
+- [ ] **Step 1: Rewrite the "Test case schema" section**
+
+  Replace the entire "Test case schema" section (from `## Test case schema` through the end of the `StatusCodeSet` description, before the final Google disclaimer paragraph) with:
+
+  ````markdown
+  ## Test case schema
+
+  Test cases are YAML files following the JSON schema in `validation_test.schema.json`. Top-level fields:
+
+  * `description` — description of the test case
+  * `inputs` — validator inputs
+    * `assetPath` — path to the asset to validate
+    * `claimSignerTrustListPaths` — paths to PEM files for the claim signer trust list
+    * `tsaTrustListPaths` — paths to PEM files for the TSA trust list
+    * `validationTime` — validation time in RFC 3339 format (e.g. `"2010-03-21T15:30:00Z"`)
+  * `globals` *(optional)* — named values passed to all formula evaluations; accessible in formulas as `$name`
+  * `expressions` *(optional)* — named sub-expressions (string formulas) merged into globals and callable from any formula
+  * `validatorSpecVersions` *(optional)* — C2PA spec version(s) this test applies to (e.g. `"2.4"`); empty means all versions
+
+  Exactly one of the following must be present:
+
+  * `formula` — a single [JSON Formula](https://opensource.adobe.com/json-formula/) string evaluated against the **full crJSON document**. Used when the test expects no C2PA manifests, e.g. `length(manifests) = 0`.
+
+  * `manifests` — an array of per-manifest checks, active manifest first (matching crJSON order). Each entry has one field:
+    * `formula` — a JSON Formula string evaluated against the manifest's raw `validationResults` object: `{success: [{code, url}], failure: [{code, url}], informational: [{code, url}]}`. Must return truthy to pass.
+
+  ### Example formulas
+
+  Check that a manifest has no failures and specific success codes:
+  ```
+  length(failure) = 0 && length(success[?code == 'claimSignature.validated']) > 0
+  ```
+
+  Check that a specific failure code is present:
+  ```
+  length(failure[?code == 'claimSignature.mismatch']) > 0
+  ```
+
+  Check that the asset has no C2PA manifests (top-level `formula:`):
+  ```
+  length(manifests) = 0
+  ```
+  ````
+
+- [ ] **Step 2: Verify the file looks right**
+
+  ```bash
+  head -80 tests/validation/README.md
+  ```
+
+- [ ] **Step 3: Commit**
+
+  ```bash
+  git add tests/validation/README.md
+  git commit -m "docs: update validation README for json-formula schema"
   ```
