@@ -226,6 +226,7 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
         }
         (Some(top_formula), None) => {
             let result = jf.search(top_formula, &crjson_value, globals_arg.as_ref(), None);
+            let debug_msgs = jf.take_debug();
             let (pass, reason) = formula_result_to_pass(result, top_formula);
             Ok(ValidationReport {
                 description: test_case.description,
@@ -236,7 +237,7 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
                     vec![ManifestResult {
                         index: 0,
                         pass: false,
-                        reasons: vec![reason],
+                        reasons: build_reasons(reason, debug_msgs),
                         actual_successes: vec![],
                         actual_failures: vec![],
                         actual_informationals: vec![],
@@ -268,6 +269,7 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
                 let actual_informationals = extract_codes(&vr["informational"]);
 
                 let result = jf.search(&expected.formula, vr, globals_arg.as_ref(), None);
+                let debug_msgs = jf.take_debug();
                 let (pass, reason) = formula_result_to_pass(result, &expected.formula);
 
                 if !pass {
@@ -276,7 +278,7 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
                 manifest_results.push(ManifestResult {
                     index: i,
                     pass,
-                    reasons: if pass { vec![] } else { vec![reason] },
+                    reasons: if pass { vec![] } else { build_reasons(reason, debug_msgs) },
                     actual_successes,
                     actual_failures,
                     actual_informationals,
@@ -291,6 +293,14 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
             })
         }
     }
+}
+
+fn build_reasons(reason: String, debug_msgs: Vec<String>) -> Vec<String> {
+    let mut reasons = vec![reason];
+    for msg in debug_msgs {
+        reasons.push(format!("  debug: {}", msg));
+    }
+    reasons
 }
 
 fn formula_result_to_pass(
