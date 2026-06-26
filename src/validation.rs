@@ -196,6 +196,10 @@ pub fn run_validation(yaml_path: &Path) -> Result<ValidationReport> {
     let validation_time_ignored = test_case.inputs.validation_time.is_some();
 
     let mut jf = JsonFormula::new();
+    for (name, body) in &test_case.expressions {
+        jf.register_expression_with_params(name, body)
+            .with_context(|| format!("invalid expression '{}': {}", name, body))?;
+    }
     let merged_globals = build_globals(&test_case.globals, &test_case.expressions);
     let globals_arg = if merged_globals
         .as_object()

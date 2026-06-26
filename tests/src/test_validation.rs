@@ -158,10 +158,11 @@ fn test_run_all_validation_yaml_files() {
                 // Assert the failure is specifically expired certs, not something unexpected
                 if !report.overall_pass {
                     for m in &report.manifests {
-                        if !m
-                            .actual_failures
-                            .iter()
-                            .any(|c| c == "signingCredential.expired")
+                        if !m.actual_failures.is_empty()
+                            && !m
+                                .actual_failures
+                                .iter()
+                                .any(|c| c == "signingCredential.expired")
                         {
                             failures.push(format!(
                                 "{stem}: manifest[{}] failed with unexpected codes — not a clock issue. \
