@@ -9,15 +9,28 @@
     "inputs": {
       "$ref": "#/definitions/Inputs"
     },
+    "globals": {
+      "type": "object",
+      "description": "Named values passed as globals to all formula evaluations. Keys accessible as $name in formulas."
+    },
+    "expressions": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Named sub-expressions merged into globals and available in all formulas."
+    },
+    "formula": {
+      "type": "string",
+      "description": "Top-level JSON Formula expression evaluated against the full crJSON document. Used for the zero-manifest case. Mutually exclusive with manifests."
+    },
     "manifests": {
-      "description": "Expected validation results for each manifest in the manifest store, IN REVERSE ORDER (active manifest first, as in crJSON). If empty, the validator is expected not to find any C2PA manifests.",
+      "description": "Per-manifest formula checks, active manifest first. Mutually exclusive with formula.",
       "type": "array",
       "items": {
-        "$ref": "#/definitions/ManifestResult"
+        "$ref": "#/definitions/ManifestExpectation"
       }
     },
     "validatorSpecVersions": {
-      "description": "C2PA spec version(s) that this test case applies to (e.g., \"2.4\"). If empty, the test case is assumed to apply to all spec versions.",
+      "description": "C2PA spec version(s) that this test case applies to. If empty, applies to all versions.",
       "type": "array",
       "items": {
         "type": "string"
@@ -27,8 +40,7 @@
   "additionalProperties": false,
   "required": [
     "description",
-    "inputs",
-    "manifests"
+    "inputs"
   ],
   "definitions": {
     "Inputs": {
@@ -40,91 +52,33 @@
           "type": "string"
         },
         "claimSignerTrustListPaths": {
-          "description": "Paths containing the claim signer trust list (in PEM format) for the C2PA EKU (c2pa-kp-claimSigning). Each file contains one or more PEM certificates. At least one trust anchor must be provided.",
+          "description": "Paths to PEM files containing the claim signer trust list.",
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "tsaTrustListPaths": {
-          "description": "Paths containing the TSA trust list (in PEM format). Each file contains one or more PEM certificates. At least one trust anchor must be provided.",
+          "description": "Paths to PEM files containing the TSA trust list.",
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "validationTime": {
-          "description": "The time at which validation should be performed (RFC 3339 format, e.g., \"2010-03-21T15:30:00Z\").",
+          "description": "Validation time in RFC 3339 format (e.g. \"2010-03-21T15:30:00Z\").",
           "type": "string"
         }
       },
       "additionalProperties": false,
       "required": ["assetPath", "claimSignerTrustListPaths", "tsaTrustListPaths", "validationTime"]
     },
-    "StatusCodeSet": {
-      "description": "A set of C2PA status codes, e.g., \"signingCredential.trusted\".",
+    "ManifestExpectation": {
+      "description": "Formula expectation for a single manifest.",
       "type": "object",
       "properties": {
-        "codes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "formula": {
+          "type": "string",
+          "description": "JSON Formula expression evaluated against the manifest's raw validationResults object. Must return truthy to pass."
         }
       },
-      "additionalProperties": false
-    },
-    "StatusCodesExpectations": {
-      "description": "A predicate over a set of status codes produced by a C2PA validator.",
-      "type": "object",
-      "properties": {
-        "isEmpty": {
-          "type": "object",
-          "additionalProperties": false
-        },
-        "isNotEmpty": {
-          "type": "object",
-          "additionalProperties": false
-        },
-        "containsExactly": {
-          "description": "If present, the set must contain exactly these codes.",
-          "$ref": "#/definitions/StatusCodeSet"
-        },
-        "containsAllOf": {
-          "description": "If present, the set must contain all of these codes.",
-          "$ref": "#/definitions/StatusCodeSet"
-        },
-        "containsNoneOf": {
-          "description": "If present, the set must contain none of these codes.",
-          "$ref": "#/definitions/StatusCodeSet"
-        },
-        "containsAnyOf": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/StatusCodeSet"
-          },
-          "description": "The set must contain at least one code from each of the listed sets."
-        }
-      },
-      "additionalProperties": false
-    },
-    "ManifestResult": {
-      "description": "Expectations for the validator's assessment of a single manifest.",
-      "type": "object",
-      "properties": {
-        "failures": {
-          "description": "Expectations regarding failure status codes.",
-          "$ref": "#/definitions/StatusCodesExpectations"
-        },
-        "successes": {
-          "description": "Expectations regarding success status codes.",
-          "$ref": "#/definitions/StatusCodesExpectations"
-        },
-        "informationals": {
-          "description": "Expectations regarding informational status codes.",
-          "$ref": "#/definitions/StatusCodesExpectations"
-        }
-      },
+      "required": ["formula"],
       "additionalProperties": false
     }
   }
