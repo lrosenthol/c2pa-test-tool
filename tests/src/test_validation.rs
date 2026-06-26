@@ -144,6 +144,54 @@ fn test_no_debug_messages_on_plain_falsy_result() {
 }
 
 #[test]
+fn test_validation_report_fails_when_formula_expectation_is_wrong() {
+    // Formula expects a code that is never present — should produce a clean falsy
+    // failure with no debug messages (field names are valid, just wrong values).
+    let yaml_content = r#"description: intentionally wrong expectation
+inputs:
+  assetPath: ./png_valid.png
+  claimSignerTrustListPaths:
+  - certs/root_ca1_cert.pem
+  tsaTrustListPaths:
+  - certs/root_ca1_cert.pem
+globals:
+  $required_codes:
+    - nonExistent.code
+expressions:
+  _containsAllOf: "length(@[0][?contains($required_codes, code)]) = length($required_codes)"
+manifests:
+- formula: _containsAllOf(success, $required_codes)
+"#;
+
+    let yaml_dir = std::path::Path::new("tests/validation");
+    let tmp = tempfile::Builder::new()
+        .prefix("_wrong_expectation_test_")
+        .suffix(".yaml")
+        .tempfile_in(yaml_dir)
+        .expect("failed to create temp yaml");
+    std::fs::write(tmp.path(), yaml_content).expect("failed to write temp yaml");
+
+    let report = crtool::validation::run_validation(tmp.path())
+        .expect("run_validation should not error");
+
+    assert!(!report.overall_pass, "wrong formula expectation should fail");
+    assert_eq!(report.manifests.len(), 1);
+    let m = &report.manifests[0];
+    assert!(!m.pass);
+    assert!(
+        m.reasons.iter().any(|r| r.contains("formula returned falsy")),
+        "expected 'formula returned falsy' reason, got: {:?}",
+        m.reasons
+    );
+    // No debug messages — fields are valid, the formula just evaluates to false
+    assert!(
+        !m.reasons.iter().any(|r| r.contains("debug:")),
+        "expected no debug messages for a plain falsy result, got: {:?}",
+        m.reasons
+    );
+}
+
+#[test]
 fn test_debug_messages_surface_in_validation_report() {
     // Write a temp YAML inside tests/validation/ so relative asset paths resolve.
     let yaml_content = r#"description: debug surface test
