@@ -16,4 +16,4 @@ expressions:
 manifests:
 - formula: >-
     _isEmpty(failure) &&
-    _containsAllOf(success, $required_success_codes)
+    _containsAllOf(success)

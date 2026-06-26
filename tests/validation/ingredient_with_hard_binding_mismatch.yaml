@@ -19,7 +19,7 @@ expressions:
 manifests:
 - formula: >-
     _isEmpty(failure) &&
-    _containsAllOf(success, $active_success_codes)
+    _containsAllOf(success)
 - formula: >-
     _containsCode(failure, "assertion.dataHash.mismatch") &&
     !_containsCode(success, "assertion.dataHash.match")

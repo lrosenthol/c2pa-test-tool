@@ -16,5 +16,5 @@ expressions:
   _containsNoneOf: "length(@[0][?contains($excluded_success_codes, code)]) = 0"
 manifests:
 - formula: >-
-    _containsAllOf(failure, $expected_failure_codes) &&
-    _containsNoneOf(success, $excluded_success_codes)
+    _containsAllOf(failure) &&
+    _containsNoneOf(success)

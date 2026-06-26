@@ -12,4 +12,4 @@ globals:
 expressions:
   _containsAllOf: "length(@[0][?contains($expected_failure_codes, code)]) = length($expected_failure_codes)"
 manifests:
-- formula: _containsAllOf(failure, $expected_failure_codes)
+- formula: _containsAllOf(failure)

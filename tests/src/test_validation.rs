@@ -160,7 +160,7 @@ globals:
 expressions:
   _containsAllOf: "length(@[0][?contains($required_codes, code)]) = length($required_codes)"
 manifests:
-- formula: _containsAllOf(success, $required_codes)
+- formula: _containsAllOf(success)
 "#;
 
     let yaml_dir = std::path::Path::new("tests/validation");
