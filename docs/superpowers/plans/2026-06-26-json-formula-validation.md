@@ -79,8 +79,8 @@ This task updates the data model without touching evaluation logic. The old `Man
 
   #[test]
   fn test_validation_test_case_has_globals_and_expressions() {
+      use indexmap::IndexMap;
       use serde_json::json;
-      use std::collections::HashMap;
       let tc = crtool::validation::ValidationTestCase {
           description: "test".to_string(),
           inputs: crtool::validation::Inputs {
@@ -90,7 +90,7 @@ This task updates the data model without touching evaluation logic. The old `Man
               validation_time: None,
           },
           globals: json!({}),
-          expressions: HashMap::new(),
+          expressions: IndexMap::new(),
           formula: Some("length(manifests) = 0".to_string()),
           manifests: None,
           validator_spec_versions: vec![],
@@ -118,10 +118,17 @@ This task updates the data model without touching evaluation logic. The old `Man
   }
   ```
 
-  Replace `ValidationTestCase` (lines ~17–24) — add `globals`, `expressions`, `formula`, make `manifests` optional:
+  Replace `ValidationTestCase` (lines ~17–24) — add `globals`, `expressions`, `formula`, make `manifests` optional. Use `IndexMap` (already in `Cargo.lock` as a transitive dep) so expression insertion order is preserved:
+
+  First add to `Cargo.toml` `[dependencies]`:
+  ```toml
+  indexmap = "2"
+  ```
+
+  Then in `src/validation.rs`:
 
   ```rust
-  use std::collections::HashMap;
+  use indexmap::IndexMap;
 
   #[derive(Debug, Deserialize)]
   pub struct ValidationTestCase {
@@ -130,7 +137,7 @@ This task updates the data model without touching evaluation logic. The old `Man
       #[serde(default)]
       pub globals: serde_json::Value,
       #[serde(default)]
-      pub expressions: HashMap<String, String>,
+      pub expressions: IndexMap<String, String>,
       pub formula: Option<String>,
       pub manifests: Option<Vec<ManifestExpectation>>,
       #[serde(rename = "validatorSpecVersions", default)]
@@ -175,8 +182,16 @@ This task replaces the evaluation loop and removes the old DSL structs. After th
   use serde_json::json;
 
   fn eval_formula(formula: &str, data: serde_json::Value) -> bool {
+      eval_formula_with_globals(formula, data, None)
+  }
+
+  fn eval_formula_with_globals(
+      formula: &str,
+      data: serde_json::Value,
+      globals: Option<serde_json::Value>,
+  ) -> bool {
       let jf = JsonFormula::new();
-      match jf.search(formula, &data, None, None) {
+      match jf.search(formula, &data, globals.as_ref(), None) {
           Ok(v) => crtool::validation::is_truthy(&v),
           Err(_) => false,
       }
@@ -205,6 +220,19 @@ This task replaces the evaluation loop and removes the old DSL structs. After th
       let data = json!({"success": [], "failure": [], "informational": []});
       assert!(!eval_formula("length(success[?code == 'claimSignature.validated']) > 0", data));
   }
+
+  #[test]
+  fn test_formula_globals_accessible_in_formula() {
+      // Verify that a $global value injected via build_globals is reachable from a formula.
+      let data = json!({"success": [{"code": "claimSignature.validated", "url": ""}], "failure": [], "informational": []});
+      let globals = json!({"$target_code": "claimSignature.validated"});
+      // $target_code is a string global; use it in a direct equality check
+      assert!(eval_formula_with_globals(
+          "length(success[?code == $target_code]) > 0",
+          data,
+          Some(globals),
+      ));
+  }
   ```
 
 - [ ] **Step 2: Run to confirm tests fail**
@@ -220,8 +248,8 @@ This task replaces the evaluation loop and removes the old DSL structs. After th
   At the top of `src/validation.rs`, add imports:
 
   ```rust
+  use indexmap::IndexMap;
   use json_formula_rs::{JsonFormula, JsonFormulaError};
-  use std::collections::HashMap;
   ```
 
   Add a public `is_truthy` helper after the struct definitions:
@@ -244,7 +272,7 @@ This task replaces the evaluation loop and removes the old DSL structs. After th
   ```rust
   fn build_globals(
       globals: &serde_json::Value,
-      expressions: &HashMap<String, String>,
+      expressions: &IndexMap<String, String>,
   ) -> serde_json::Value {
       let mut merged = match globals.as_object() {
           Some(m) => m.clone(),
@@ -491,7 +519,7 @@ This task replaces the evaluation loop and removes the old DSL structs. After th
   cargo test test_run_all_validation_yaml_files -- --test-threads=1 2>&1 | tail -30
   ```
 
-  Expected: test runs without `run_validation returned error` entries. Failures due to `signingCredential.expired` (cert clock issue) are expected and handled by the existing assertion — the test should PASS.
+  Expected: the test itself PASSES. The test assets use a 2001 PKI; since `c2pa-rs` doesn't support `validationTime` override, certs appear expired. The test allows this by checking that any failures are *only* `signingCredential.expired` — if your output shows that code and nothing else unexpected, it's fine. The test fails if `run_validation` returns an `Err` (parse/IO error) or if a manifest fails with an unexpected code.
 
 - [ ] **Step 8: Commit**
 
