@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test Commands
 
 ```bash
-# Build (requires c2pa-rs and profile-evaluator-rs cloned as sibling directories)
+# Build (requires c2pa-rs, profile-evaluator-rs, and json-formula-rs cloned as sibling directories)
 cargo build
 cargo build --release
 
@@ -49,7 +49,7 @@ Single-crate package. The lib (`crtool`) exports trust utilities; the binary (`c
 
 ### Critical Path Dependency
 
-The project depends on `c2pa-rs` and `profile-evaluator-rs` via local paths (`../c2pa-rs/sdk`, `../profile-evaluator-rs`). Both repositories **must be cloned as sibling directories**.
+The project depends on `c2pa-rs`, `profile-evaluator-rs`, and `json-formula-rs` via local paths. All three repositories **must be cloned as sibling directories**.
 
 ### CLI Operating Modes
 
