@@ -24,6 +24,7 @@ use profile::{run_rubric_evaluation, ReportFormat};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use test_case::handle_create_test;
+use std::fs;
 
 // ─── Logger ──────────────────────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ impl Logger {
 
 /// C2PA Test Tool - Create test assets, validate assets, and evaluate rubrics
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, arg_required_else_help = true)]
 pub struct Cli {
     /// Path or glob pattern for test case YAML file(s) (C2PA test case schema).
     /// Supports glob patterns (e.g., "test-cases/positive/tc-*.yaml", "test-cases/**/*.yaml").
@@ -110,6 +111,11 @@ pub struct Cli {
     /// Path to a batch JSON file — runs multiple commands in sequence
     #[arg(short = 'b', long = "batch", value_name = "FILE")]
     batch: Option<PathBuf>,
+
+    /// Extract and dump the crJSON indicators from the provided C2PA asset(s).
+    /// Prints to stdout, or writes to a file when --output is specified.
+    #[arg(long = "crjson", default_value = "false")]
+    crjson: bool,
 
     /// Suppress progress output (errors are still shown on stderr)
     #[arg(short = 'q', long = "quiet", default_value = "false")]
@@ -365,6 +371,38 @@ pub fn run_cli(cli: Cli, logger: &mut Logger) -> Result<()> {
             unsupported.iter().map(|p| p.as_path()).collect::<Vec<_>>(),
             SUPPORTED_ASSET_EXTENSIONS.join(", ")
         );
+    }
+
+    // ── crJSON dump mode ──────────────────────────────────────────────────────
+    if cli.crjson {
+        for input_file in &input_files {
+            let reader = c2pa::Reader::from_context(c2pa::Context::new())
+                .with_file(input_file)
+                .with_context(|| {
+                    format!("Failed to read C2PA manifest from {:?}", input_file)
+                })?;
+            let crjson_str = reader
+                .crjson_checked()
+                .context("Failed to extract crJSON from asset")?;
+
+            if let Some(output_path) = &cli.output {
+                let dest = if output_path.is_dir() {
+                    let stem = input_file
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("asset");
+                    output_path.join(format!("{}.json", stem))
+                } else {
+                    output_path.clone()
+                };
+                fs::write(&dest, crjson_str.as_bytes())
+                    .with_context(|| format!("Failed to write crJSON to {}", dest.display()))?;
+                logger.info(&format!("  📄 crJSON written to: {}", dest.display()));
+            } else {
+                println!("{}", crjson_str);
+            }
+        }
+        return Ok(());
     }
 
     anyhow::bail!(

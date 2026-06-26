@@ -5,6 +5,7 @@ A CLI tool for working with [C2PA (Coalition for Content Provenance and Authenti
 1. **Create test assets** — sign media files with C2PA manifests from test-case YAML files
 2. **Validate assets** — validate assets against a YAML grammar *(scaffolded; grammar TBD)*
 3. **Rubric evaluation** — evaluate a YAML rubric against crJSON indicators or a signed C2PA asset
+4. **crJSON extraction** — dump the crJSON indicators embedded in a signed C2PA asset
 
 ## Prerequisites
 
@@ -71,6 +72,21 @@ The report is written alongside the input file as `<stem>-report.<json|yaml>`.
 
 > `--profile` is accepted as a deprecated alias for `--rubric`.
 
+### Dump crJSON
+
+Extract and print the crJSON indicators embedded in a signed C2PA asset:
+
+```bash
+# Print to stdout
+c2pa-test-tool --crjson image.jpg
+
+# Write to a file
+c2pa-test-tool --crjson image.jpg --output indicators.json
+
+# Multiple assets — write each to a directory (named <stem>.json)
+c2pa-test-tool --crjson image.jpg image2.png --output output/
+```
+
 ### Batch mode
 
 Run multiple commands from a JSON batch file:
@@ -96,6 +112,7 @@ c2pa-test-tool --trust --rubric rubrics/asset-rubric-conformance0.2-spec2.4.yml 
 | `--grammar FILE` | YAML grammar for validation (use with `--validate`) |
 | `--rubric FILE` | YAML rubric for evaluation; accepts crJSON or a signed asset |
 | `--report-format json\|yaml` | Rubric report format (default: `yaml`) |
+| `--crjson` | Output the crJSON for the Content Credentials |
 | `-o / --output PATH` | Output file or directory |
 | `--trust` | Enable C2PA trust list validation |
 | `-b / --batch FILE` | Run commands from a batch JSON file |
@@ -132,7 +149,24 @@ cargo test -- --test-threads=1   # recommended for integration tests
 
 ## Supported asset formats
 
-`avi avif c2pa dng gif heic heif jpg jpeg m4a mov mp3 mp4 pdf png svg tif tiff wav webp`
+- `avi`
+- `avif`
+- `c2pa`
+- `dng`
+- `gif`
+- `heic`
+- `heif`
+- `jpg` / `jpeg`
+- `m4a`
+- `mov`
+- `mp3`
+- `mp4`
+- `pdf`
+- `png`
+- `svg`
+- `tif` / `tiff`
+- `wav`
+- `webp`
 
 ## License
 
