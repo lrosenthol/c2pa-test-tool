@@ -14,12 +14,12 @@ globals:
     - claimSignature.validated
 expressions:
   _isEmpty: "length(@[0]) = 0"
-  _containsAllOf: "length(@[0][?contains($active_success_codes, code)]) = length($active_success_codes)"
+  _hasActiveManifestSuccessCodes: "length(@[0][?contains($active_success_codes, code)]) = length($active_success_codes)"
   _containsCode: "contains(@[0][*].code, @[1])"
 manifests:
 - formula: >-
     _isEmpty(failure) &&
-    _containsAllOf(success)
+    _hasActiveManifestSuccessCodes(success)
 - formula: >-
     _containsCode(failure, "assertion.dataHash.mismatch") &&
     !_containsCode(success, "assertion.dataHash.match")

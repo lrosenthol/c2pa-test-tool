@@ -12,8 +12,8 @@ globals:
     - signingCredential.trusted
 expressions:
   _isEmpty: "length(@[0]) = 0"
-  _containsAllOf: "length(@[0][?contains($required_success_codes, code)]) = length($required_success_codes)"
+  _hasRequiredSuccessCodes: "length(@[0][?contains($required_success_codes, code)]) = length($required_success_codes)"
 manifests:
 - formula: >-
     _isEmpty(failure) &&
-    _containsAllOf(success)
+    _hasRequiredSuccessCodes(success)

@@ -10,6 +10,6 @@ globals:
   $expected_failure_codes:
     - algorithm.unsupported
 expressions:
-  _containsAllOf: "length(@[0][?contains($expected_failure_codes, code)]) = length($expected_failure_codes)"
+  _hasUnsupportedAlgorithmFailure: "length(@[0][?contains($expected_failure_codes, code)]) = length($expected_failure_codes)"
 manifests:
-- formula: _containsAllOf(failure)
+- formula: _hasUnsupportedAlgorithmFailure(failure)

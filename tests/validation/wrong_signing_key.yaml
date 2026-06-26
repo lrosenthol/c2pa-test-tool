@@ -12,9 +12,9 @@ globals:
   $excluded_success_codes:
     - claimSignature.validated
 expressions:
-  _containsAllOf: "length(@[0][?contains($expected_failure_codes, code)]) = length($expected_failure_codes)"
-  _containsNoneOf: "length(@[0][?contains($excluded_success_codes, code)]) = 0"
+  _hasSignatureMismatchFailure: "length(@[0][?contains($expected_failure_codes, code)]) = length($expected_failure_codes)"
+  _hasNoValidationSuccess: "length(@[0][?contains($excluded_success_codes, code)]) = 0"
 manifests:
 - formula: >-
-    _containsAllOf(failure) &&
-    _containsNoneOf(success)
+    _hasSignatureMismatchFailure(failure) &&
+    _hasNoValidationSuccess(success)
